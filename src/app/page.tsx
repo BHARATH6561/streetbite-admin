@@ -981,7 +981,7 @@ export default function Home() {
                 </table>
               </div>
             </div>
-          )
+          )}
 
           {/* ── PAYMENTS SECTION ── */}
           {activeSection === 'payments' && (
@@ -1330,6 +1330,197 @@ export default function Home() {
               Add Partner
             </button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════
+         INVOICE MODAL
+         ═══════════════════════════════════════════ */}
+      <Dialog open={!!invoiceOrder} onOpenChange={(open) => { if (!open) setInvoiceOrder(null) }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-xl">
+          {invoiceOrder && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-3 text-xl text-white">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-[#f97316]/15">
+                    <ClipboardList className="size-5 text-[#f97316]" />
+                  </div>
+                  Order Invoice
+                </DialogTitle>
+                <DialogDescription className="text-neutral-400">
+                  Invoice for order {invoiceOrder.id}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-5">
+                {/* Invoice Header */}
+                <div className="rounded-2xl border border-[#f97316]/20 bg-[#f97316]/5 p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Flame className="size-5 text-[#f97316]" />
+                        <span className="text-lg font-bold text-white">StreetBite</span>
+                      </div>
+                      <p className="mt-1 text-xs text-neutral-400">Food Delivery Platform</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-[#f97316]">INVOICE</p>
+                      <p className="text-xs text-neutral-400">{invoiceOrder.id}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Order & Date Info */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Order Details</h4>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-400">Order No</span>
+                        <span className="font-semibold text-[#f97316]">{invoiceOrder.id}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-400">Date</span>
+                        <span className="text-white">{invoiceOrder.orderDate}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-400">Time</span>
+                        <span className="text-white">{invoiceOrder.orderTime}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-400">Status</span>
+                        <StatusBadge status={invoiceOrder.status} />
+                      </div>
+                      {invoiceOrder.delayed && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-400">Delay</span>
+                          <span className="inline-flex items-center gap-0.5 text-xs font-medium text-purple-400">
+                            <AlertTriangle className="size-3" /> Delayed
+                          </span>
+                        </div>
+                      )}
+                      {invoiceOrder.cancelledBy && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-400">Cancelled By</span>
+                          <span className="text-red-400">{invoiceOrder.cancelledBy}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Customer</h4>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-sm text-white">
+                        <User className="size-3.5 text-[#f97316]/60" />
+                        {invoiceOrder.customer}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vendor Info */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Vendor (Hotel)</h4>
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
+                    <div className="flex items-center gap-2 text-sm text-white font-medium">
+                      <Store className="size-3.5 text-[#f97316]/60" />
+                      {invoiceOrder.vendor}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-neutral-300">
+                      <User className="size-3.5 text-neutral-500" />
+                      {invoiceOrder.vendorOwner}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-neutral-300">
+                      <Phone className="size-3.5 text-neutral-500" />
+                      {invoiceOrder.vendorPhone}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Partner Info */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Delivery Partner</h4>
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
+                    <div className="flex items-center gap-2 text-sm text-white font-medium">
+                      <Bike className="size-3.5 text-[#f97316]/60" />
+                      {invoiceOrder.rider}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-neutral-300">
+                      <Phone className="size-3.5 text-neutral-500" />
+                      {invoiceOrder.riderPhone}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Items Ordered */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Items Ordered</h4>
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                    <div className="flex items-start gap-2">
+                      <ShoppingBag className="size-4 mt-0.5 shrink-0 text-[#f97316]" />
+                      <div className="space-y-1">
+                        {invoiceOrder.items.split(', ').map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm text-white">
+                            <span className="size-1.5 shrink-0 rounded-full bg-[#f97316]" />
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Price Breakdown */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Payment Summary</h4>
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-400">Subtotal</span>
+                      <span className="text-white">₹{invoiceOrder.amount}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-400">Delivery Fee</span>
+                      <span className="text-white">₹30</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-400">Platform Fee</span>
+                      <span className="text-white">₹5</span>
+                    </div>
+                    <div className="border-t border-white/10 pt-3">
+                      <div className="flex justify-between">
+                        <span className="text-base font-bold text-white">Total</span>
+                        <span className="text-base font-bold text-[#f97316]">₹{invoiceOrder.amount + 35}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="text-center text-xs text-neutral-500 pt-2 border-t border-white/5">
+                  <p>This is a computer-generated invoice from StreetBite.</p>
+                  <p className="mt-1">For support, contact support@streetbite.com</p>
+                </div>
+              </div>
+
+              <DialogFooter className="pt-4 gap-2">
+                <button
+                  onClick={() => { setInvoiceOrder(null) }}
+                  className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-neutral-400 transition hover:bg-white/5"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    window.print()
+                    toast.success('Print dialog opened')
+                  }}
+                  className="flex items-center gap-2 rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6c0b] active:scale-95"
+                >
+                  <ClipboardList className="size-4" /> Print Invoice
+                </button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
