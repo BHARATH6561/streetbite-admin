@@ -317,6 +317,9 @@ export default function Home() {
   const [riderSearch, setRiderSearch] = useState('')
   const [riderSort, setRiderSort] = useState('name-asc')
   const [orderTab, setOrderTab] = useState<string>('live')
+  const [orderSearch, setOrderSearch] = useState('')
+  const [orderSort, setOrderSort] = useState('date-desc')
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
   const [paymentTab, setPaymentTab] = useState<string>('hotel')
 
   const [showAddVendor, setShowAddVendor] = useState(false)
@@ -373,8 +376,33 @@ export default function Home() {
   }, [riders, riderSearch, riderSort])
 
   const filteredOrders = useMemo(() => {
-    return orders.filter(o => o.status === orderTab)
-  }, [orders, orderTab])
+    let list = orders.filter(o => o.status === orderTab)
+    if (orderSearch) {
+      const q = orderSearch.toLowerCase()
+      list = list.filter(o =>
+        o.id.toLowerCase().includes(q) ||
+        o.vendor.toLowerCase().includes(q) ||
+        o.vendorOwner.toLowerCase().includes(q) ||
+        o.vendorPhone.includes(q) ||
+        o.rider.toLowerCase().includes(q) ||
+        o.riderPhone.includes(q) ||
+        o.items.toLowerCase().includes(q) ||
+        o.customer.toLowerCase().includes(q) ||
+        o.orderDate.includes(q) ||
+        o.orderTime.toLowerCase().includes(q) ||
+        String(o.amount).includes(q)
+      )
+    }
+    switch (orderSort) {
+      case 'date-desc': list.sort((a, b) => b.orderDate.localeCompare(a.orderDate) || b.orderTime.localeCompare(a.orderTime)); break
+      case 'date-asc': list.sort((a, b) => a.orderDate.localeCompare(b.orderDate) || a.orderTime.localeCompare(b.orderTime)); break
+      case 'price-desc': list.sort((a, b) => b.amount - a.amount); break
+      case 'price-asc': list.sort((a, b) => a.amount - b.amount); break
+      case 'hotel-asc': list.sort((a, b) => a.vendor.localeCompare(b.vendor)); break
+      case 'rider-asc': list.sort((a, b) => a.rider.localeCompare(b.rider)); break
+    }
+    return list
+  }, [orders, orderTab, orderSearch, orderSort])
 
   /* ── Dashboard stats ── */
   const stats = useMemo(() => [
@@ -854,6 +882,32 @@ export default function Home() {
                   </button>
                 ))}
               </div>
+              {/* Search & Sort */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-500" />
+                  <input
+                    type="text"
+                    placeholder="Search by Order No, Hotel, Owner, Rider, Items, Date..."
+                    value={orderSearch}
+                    onChange={e => setOrderSearch(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-neutral-500 outline-none transition focus:border-[#f97316]/50 focus:ring-1 focus:ring-[#f97316]/25"
+                  />
+                </div>
+                <Select value={orderSort} onValueChange={setOrderSort}>
+                  <SelectTrigger className="w-full rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300 sm:w-52">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                    <SelectItem value="date-desc">Date (Newest)</SelectItem>
+                    <SelectItem value="date-asc">Date (Oldest)</SelectItem>
+                    <SelectItem value="price-desc">Price (High-Low)</SelectItem>
+                    <SelectItem value="price-asc">Price (Low-High)</SelectItem>
+                    <SelectItem value="hotel-asc">Hotel (A-Z)</SelectItem>
+                    <SelectItem value="rider-asc">Rider (A-Z)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {/* Order list table */}
               <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#1e1e30]">
                 <table className="w-full text-sm">
@@ -870,11 +924,12 @@ export default function Home() {
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Order Date</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Order Time</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap text-right">Price</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap text-right">Invoice</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {filteredOrders.length === 0 && (
-                      <tr><td colSpan={11} className="px-4 py-12 text-center text-neutral-500">No {orderTab} orders found</td></tr>
+                      <tr><td colSpan={12} className="px-4 py-12 text-center text-neutral-500">No {orderTab} orders found</td></tr>
                     )}
                     {filteredOrders.map(o => (
                       <tr key={o.id} className="transition hover:bg-white/[0.02]">
@@ -903,22 +958,30 @@ export default function Home() {
                         <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.vendorPhone}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.rider}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.riderPhone}</td>
-                        <td className="px-4 py-3 text-neutral-300 max-w-[200px]">
-                          <div className="flex items-center gap-1.5">
-                            <ShoppingBag className="size-3.5 shrink-0 text-[#f97316]/60" />
-                            <span className="truncate" title={o.items}>{o.items}</span>
+                        <td className="px-4 py-3 text-neutral-300 min-w-[220px]">
+                          <div className="flex items-start gap-1.5">
+                            <ShoppingBag className="size-3.5 mt-0.5 shrink-0 text-[#f97316]/60" />
+                            <span className="whitespace-normal leading-snug">{o.items}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-neutral-400">{o.orderDate}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-neutral-400">{o.orderTime}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-[#f97316]">₹{o.amount}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right">
+                          <button
+                            onClick={() => setInvoiceOrder(o)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-[#f97316]/10 px-2.5 py-1.5 text-xs font-semibold text-[#f97316] border border-[#f97316]/20 transition hover:bg-[#f97316] hover:text-white"
+                          >
+                            <Eye className="size-3" /> View
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
+          )
 
           {/* ── PAYMENTS SECTION ── */}
           {activeSection === 'payments' && (
