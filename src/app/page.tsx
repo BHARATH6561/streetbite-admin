@@ -126,9 +126,14 @@ interface Order {
   cancelledBy: string
   customer: string
   vendor: string
+  vendorOwner: string
+  vendorPhone: string
   rider: string
+  riderPhone: string
+  items: string
+  orderTime: string
+  orderDate: string
   amount: number
-  date: string
 }
 
 /* ───────────── MOCK DATA ───────────── */
@@ -146,10 +151,29 @@ const initialRiders: Rider[] = [
 
 function generateOrders(): Order[] {
   const customerNames = ['Priya M.', 'Arjun K.', 'Neha S.', 'Vikram R.', 'Sneha P.', 'Rahul D.', 'Anita G.', 'Suresh B.', 'Kavita T.', 'Deepak N.']
-  const vendorNames = initialVendors.map(v => v.hotel)
-  const riderNames = initialRiders.map(r => r.name)
-  const statuses: OrderStatus[] = ['live', 'completed', 'cancelled']
   const cancelledByOptions = ['Customer', 'Hotel', 'Rider']
+  const foodItems = [
+    'Butter Masala Dosa, Filter Coffee',
+    'Pav Bhaji, Lassi',
+    'Chole Bhature, Sweet Lassi',
+    'Paneer Tikka, Naan, Raita',
+    'Vada Pav, Cutting Chai',
+    'Masala Dosa, Sambar, Idli',
+    'Chicken Biryani, Raita',
+    'Mutton Rogan Josh, Jeera Rice',
+    'Aloo Paratha, Curd, Pickle',
+    'Rajma Chawal, Salad',
+    'Pani Puri, Sev Puri, Dahi Puri',
+    'Samosa, Bread Pakora, Chai',
+    'Veg Thali',
+    'Non-Veg Thali',
+    'Egg Fried Rice, Gobi Manchurian',
+    'Mushroom Do Pyaza, Roti',
+    'Fish Curry, Steamed Rice',
+    'Prawn Fry, Appam',
+    'Dal Makhani, Jeera Rice, Naan',
+    'Kadai Paneer, Butter Naan',
+  ]
   const orders: Order[] = []
 
   for (let i = 1; i <= 35; i++) {
@@ -163,7 +187,17 @@ function generateOrders(): Order[] {
     const cancelledBy = status === 'cancelled' ? cancelledByOptions[Math.floor(Math.random() * 3)] : ''
     const day = Math.floor(Math.random() * 28) + 1
     const month = Math.floor(Math.random() * 3) + 1
+    const hour = Math.floor(Math.random() * 12) + 7
+    const minute = Math.floor(Math.random() * 60)
+    const ampm = hour < 12 ? 'AM' : 'PM'
+    const displayHour = hour > 12 ? hour - 12 : hour
     const amount = Math.floor(Math.random() * 800) + 100
+
+    // Pick a random vendor and rider from the actual data
+    const vendorIdx = Math.floor(Math.random() * initialVendors.length)
+    const riderIdx = Math.floor(Math.random() * initialRiders.length)
+    const vendor = initialVendors[vendorIdx]
+    const rider = initialRiders[riderIdx]
 
     orders.push({
       id: `ORD-${String(1000 + i).padStart(4, '0')}`,
@@ -171,10 +205,15 @@ function generateOrders(): Order[] {
       delayed: isDelayed,
       cancelledBy,
       customer: customerNames[Math.floor(Math.random() * customerNames.length)],
-      vendor: vendorNames[Math.floor(Math.random() * vendorNames.length)],
-      rider: riderNames[Math.floor(Math.random() * riderNames.length)],
+      vendor: vendor.hotel,
+      vendorOwner: vendor.owner,
+      vendorPhone: vendor.phone,
+      rider: rider.name,
+      riderPhone: `+91-${rider.aadhaar.slice(-4)}${String(rider.id).padStart(6, '0')}`,
+      items: foodItems[Math.floor(Math.random() * foodItems.length)],
+      orderTime: `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${ampm}`,
+      orderDate: `2025-0${month}-${String(day).padStart(2, '0')}`,
       amount,
-      date: `2025-0${month}-${String(day).padStart(2, '0')}`,
     })
   }
   return orders
@@ -815,42 +854,68 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              {/* Order cards */}
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {filteredOrders.length === 0 && (
-                  <div className="col-span-full rounded-2xl border border-white/5 bg-[#1e1e30] py-12 text-center text-neutral-500">
-                    No {orderTab} orders found
-                  </div>
-                )}
-                {filteredOrders.map(o => (
-                  <div key={o.id} className="rounded-2xl border border-white/5 bg-[#1e1e30] p-4 transition hover:border-white/10">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">{o.id}</span>
-                      <StatusBadge status={o.status} />
-                    </div>
-                    <div className="mb-2 flex flex-wrap gap-1.5">
-                      {o.delayed && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
-                          <AlertTriangle className="size-2.5" /> Delayed
-                        </span>
-                      )}
-                      {o.cancelledBy && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-400">
-                          <XCircle className="size-2.5" /> Cancelled by {o.cancelledBy}
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 text-xs text-neutral-400">
-                      <div className="flex items-center gap-2"><User className="size-3" /> {o.customer}</div>
-                      <div className="flex items-center gap-2"><Store className="size-3" /> {o.vendor}</div>
-                      <div className="flex items-center gap-2"><Bike className="size-3" /> {o.rider}</div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-3">
-                      <span className="text-xs text-neutral-500">{o.date}</span>
-                      <span className="text-sm font-bold text-[#f97316]">₹{o.amount}</span>
-                    </div>
-                  </div>
-                ))}
+              {/* Order list table */}
+              <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#1e1e30]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Order No</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Status</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Hotel Name</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Owner Name</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Owner Contact</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Delivery Partner</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Partner Contact</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Items Ordered</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Order Date</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap">Order Time</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3 whitespace-nowrap text-right">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredOrders.length === 0 && (
+                      <tr><td colSpan={11} className="px-4 py-12 text-center text-neutral-500">No {orderTab} orders found</td></tr>
+                    )}
+                    {filteredOrders.map(o => (
+                      <tr key={o.id} className="transition hover:bg-white/[0.02]">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-[#f97316]">{o.id}</span>
+                            {o.delayed && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">
+                                <AlertTriangle className="size-2.5" /> Delayed
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <StatusBadge status={o.status} />
+                            {o.cancelledBy && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-400">
+                                By: {o.cancelledBy}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap font-medium text-white">{o.vendor}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.vendorOwner}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.vendorPhone}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.rider}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.riderPhone}</td>
+                        <td className="px-4 py-3 text-neutral-300 max-w-[200px]">
+                          <div className="flex items-center gap-1.5">
+                            <ShoppingBag className="size-3.5 shrink-0 text-[#f97316]/60" />
+                            <span className="truncate" title={o.items}>{o.items}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-neutral-400">{o.orderDate}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-neutral-400">{o.orderTime}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-[#f97316]">₹{o.amount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
