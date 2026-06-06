@@ -53,12 +53,22 @@ import {
   ShieldCheck,
   ShieldX,
   ShieldAlert,
+  UtensilsCrossed,
+  Image as ImageIcon,
+  Download,
+  Leaf,
+  Drumstick,
+  Tag,
+  FileText,
+  Accessibility,
 } from 'lucide-react'
 
 /* ───────────── TYPES ───────────── */
 type VendorStatus = 'approved' | 'pending' | 'rejected'
 type RiderStatus = 'approved' | 'pending' | 'rejected'
 type OrderStatus = 'live' | 'completed' | 'cancelled'
+type FoodType = 'VEG' | 'NONVEG'
+type MenuItemStatus = 'approved' | 'pending' | 'rejected'
 
 interface Vendor {
   id: number
@@ -117,6 +127,7 @@ interface Rider {
   cancelledDelay: number
   totalEarnings: number
   deliveryFee: number
+  handicap: 'YES' | 'NO'
 }
 
 interface Order {
@@ -131,9 +142,24 @@ interface Order {
   rider: string
   riderPhone: string
   items: string
+  itemsFoodType: FoodType[]
   orderTime: string
   orderDate: string
   amount: number
+}
+
+interface MenuItem {
+  id: number
+  name: string
+  description: string
+  category: string
+  foodType: FoodType
+  price: number
+  photoUrl: string
+  vendorId: number
+  vendorName: string
+  status: MenuItemStatus
+  createdAt: string
 }
 
 /* ───────────── MOCK DATA ───────────── */
@@ -144,10 +170,79 @@ const initialVendors: Vendor[] = [
 ]
 
 const initialRiders: Rider[] = [
-  { id: 1, name: 'Raju Singh', aadhaar: '3456-7890-1234', aadhaarFile: 'Aadhaar.pdf', pan: 'PQRST1234U', panFile: 'PAN.pdf', photoFile: 'Photo.jpg', vehicle: 'KA-01-AB-1234', vehicleFile: 'Vehicle.jpg', rcFile: 'RC.pdf', dl: 'DL12345', dlFile: 'DL.pdf', city: 'Bangalore', state: 'Karnataka', pincode: '560001', bankName: 'Kotak', accNo: '445566778899', ifsc: 'KKBK0001234', branch: 'Koramangala', status: 'approved', rating: 4.7, totalDeliveries: 920, cancelledDelay: 8, totalEarnings: 18500, deliveryFee: 30 },
-  { id: 2, name: 'Manoj Kumar', aadhaar: '4567-8901-2345', aadhaarFile: 'Aadhaar.pdf', pan: 'VWXYZ5678A', panFile: 'PAN.pdf', photoFile: 'Photo.jpg', vehicle: 'KA-01-CD-5678', vehicleFile: 'Vehicle.jpg', rcFile: 'RC.pdf', dl: 'DL67890', dlFile: 'DL.pdf', city: 'Bangalore', state: 'Karnataka', pincode: '560002', bankName: 'Axis', accNo: '998877665544', ifsc: 'UTIB0001234', branch: 'Whitefield', status: 'pending', rating: 0, totalDeliveries: 0, cancelledDelay: 0, totalEarnings: 0, deliveryFee: 30 },
-  { id: 3, name: 'Suresh Yadav', aadhaar: '5678-9012-3456', aadhaarFile: 'Aadhaar.pdf', pan: 'ABCDE9876B', panFile: 'PAN.pdf', photoFile: 'Photo.jpg', vehicle: 'KA-02-EF-9012', vehicleFile: 'Vehicle.jpg', rcFile: 'RC.pdf', dl: 'MH54321', dlFile: 'DL.pdf', city: 'Hubli', state: 'Karnataka', pincode: '580001', bankName: 'SBI', accNo: '556677889900', ifsc: 'SBIN0009876', branch: 'Hubli Main', status: 'approved', rating: 4.2, totalDeliveries: 450, cancelledDelay: 15, totalEarnings: 9500, deliveryFee: 30 },
+  { id: 1, name: 'Raju Singh', aadhaar: '3456-7890-1234', aadhaarFile: 'Aadhaar.pdf', pan: 'PQRST1234U', panFile: 'PAN.pdf', photoFile: 'Photo.jpg', vehicle: 'KA-01-AB-1234', vehicleFile: 'Vehicle.jpg', rcFile: 'RC.pdf', dl: 'DL12345', dlFile: 'DL.pdf', city: 'Bangalore', state: 'Karnataka', pincode: '560001', bankName: 'Kotak', accNo: '445566778899', ifsc: 'KKBK0001234', branch: 'Koramangala', status: 'approved', rating: 4.7, totalDeliveries: 920, cancelledDelay: 8, totalEarnings: 18500, deliveryFee: 30, handicap: 'NO' },
+  { id: 2, name: 'Manoj Kumar', aadhaar: '4567-8901-2345', aadhaarFile: 'Aadhaar.pdf', pan: 'VWXYZ5678A', panFile: 'PAN.pdf', photoFile: 'Photo.jpg', vehicle: 'KA-01-CD-5678', vehicleFile: 'Vehicle.jpg', rcFile: 'RC.pdf', dl: 'DL67890', dlFile: 'DL.pdf', city: 'Bangalore', state: 'Karnataka', pincode: '560002', bankName: 'Axis', accNo: '998877665544', ifsc: 'UTIB0001234', branch: 'Whitefield', status: 'pending', rating: 0, totalDeliveries: 0, cancelledDelay: 0, totalEarnings: 0, deliveryFee: 30, handicap: 'YES' },
+  { id: 3, name: 'Suresh Yadav', aadhaar: '5678-9012-3456', aadhaarFile: 'Aadhaar.pdf', pan: 'ABCDE9876B', panFile: 'PAN.pdf', photoFile: 'Photo.jpg', vehicle: 'KA-02-EF-9012', vehicleFile: 'Vehicle.jpg', rcFile: 'RC.pdf', dl: 'MH54321', dlFile: 'DL.pdf', city: 'Hubli', state: 'Karnataka', pincode: '580001', bankName: 'SBI', accNo: '556677889900', ifsc: 'SBIN0009876', branch: 'Hubli Main', status: 'approved', rating: 4.2, totalDeliveries: 450, cancelledDelay: 15, totalEarnings: 9500, deliveryFee: 30, handicap: 'NO' },
 ]
+
+const initialMenuItems: MenuItem[] = [
+  { id: 1, name: 'Butter Masala Dosa', description: 'Crispy dosa filled with buttery masala, served with coconut chutney and sambar', category: 'South Indian', foodType: 'VEG', price: 120, photoUrl: '/food/dosa.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'approved', createdAt: '2025-01-15' },
+  { id: 2, name: 'Chicken Biryani', description: 'Aromatic basmati rice cooked with tender chicken pieces, spices and saffron', category: 'Biryani', foodType: 'NONVEG', price: 250, photoUrl: '/food/biryani.jpg', vendorId: 1, vendorName: 'Sharma Chaat Corner', status: 'approved', createdAt: '2025-01-18' },
+  { id: 3, name: 'Pav Bhaji', description: 'Spiced mashed vegetables served with buttered pav buns', category: 'Street Food', foodType: 'VEG', price: 140, photoUrl: '/food/pavbhaji.jpg', vendorId: 3, vendorName: 'Mumbai Pav Bhaji Center', status: 'pending', createdAt: '2025-02-01' },
+  { id: 4, name: 'Paneer Tikka', description: 'Marinated cottage cheese cubes grilled in tandoor with bell peppers', category: 'Starters', foodType: 'VEG', price: 180, photoUrl: '/food/paneertikka.jpg', vendorId: 1, vendorName: 'Sharma Chaat Corner', status: 'approved', createdAt: '2025-02-05' },
+  { id: 5, name: 'Mutton Rogan Josh', description: 'Slow-cooked mutton in rich Kashmiri spices and yogurt gravy', category: 'Main Course', foodType: 'NONVEG', price: 350, photoUrl: '/food/roganjosh.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'pending', createdAt: '2025-02-10' },
+  { id: 6, name: 'Vada Pav', description: 'Mumbai-style spiced potato fritter in a bun with chutneys', category: 'Street Food', foodType: 'VEG', price: 40, photoUrl: '/food/vadapav.jpg', vendorId: 3, vendorName: 'Mumbai Pav Bhaji Center', status: 'approved', createdAt: '2025-02-12' },
+  { id: 7, name: 'Chole Bhature', description: 'Spicy chickpea curry served with deep-fried bread', category: 'North Indian', foodType: 'VEG', price: 130, photoUrl: '/food/chole.jpg', vendorId: 1, vendorName: 'Sharma Chaat Corner', status: 'rejected', createdAt: '2025-02-15' },
+  { id: 8, name: 'Fish Curry', description: 'Fresh fish cooked in tangy coconut and tamarind gravy', category: 'Main Course', foodType: 'NONVEG', price: 280, photoUrl: '/food/fishcurry.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'pending', createdAt: '2025-02-20' },
+  { id: 9, name: 'Filter Coffee', description: 'Authentic South Indian filter coffee with frothed milk', category: 'Beverages', foodType: 'VEG', price: 50, photoUrl: '/food/coffee.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'approved', createdAt: '2025-02-22' },
+  { id: 10, name: 'Prawn Fry', description: 'Crispy fried prawns with spices and curry leaves', category: 'Starters', foodType: 'NONVEG', price: 320, photoUrl: '', vendorId: 3, vendorName: 'Mumbai Pav Bhaji Center', status: 'pending', createdAt: '2025-03-01' },
+  { id: 11, name: 'Masala Dosa', description: 'Thin crispy crepe made from rice batter with spiced potato filling', category: 'South Indian', foodType: 'VEG', price: 90, photoUrl: '/food/masaladosa.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'approved', createdAt: '2025-03-05' },
+  { id: 12, name: 'Egg Fried Rice', description: 'Stir-fried rice with scrambled eggs and vegetables', category: 'Chinese', foodType: 'NONVEG', price: 160, photoUrl: '', vendorId: 1, vendorName: 'Sharma Chaat Corner', status: 'pending', createdAt: '2025-03-08' },
+]
+
+const foodItemMap: Record<string, FoodType> = {
+  'Butter Masala Dosa': 'VEG',
+  'Filter Coffee': 'VEG',
+  'Pav Bhaji': 'VEG',
+  'Lassi': 'VEG',
+  'Chole Bhature': 'VEG',
+  'Sweet Lassi': 'VEG',
+  'Paneer Tikka': 'VEG',
+  'Naan': 'VEG',
+  'Raita': 'VEG',
+  'Vada Pav': 'VEG',
+  'Cutting Chai': 'VEG',
+  'Masala Dosa': 'VEG',
+  'Sambar': 'VEG',
+  'Idli': 'VEG',
+  'Chicken Biryani': 'NONVEG',
+  'Mutton Rogan Josh': 'NONVEG',
+  'Jeera Rice': 'VEG',
+  'Aloo Paratha': 'VEG',
+  'Curd': 'VEG',
+  'Pickle': 'VEG',
+  'Rajma Chawal': 'VEG',
+  'Salad': 'VEG',
+  'Pani Puri': 'VEG',
+  'Sev Puri': 'VEG',
+  'Dahi Puri': 'VEG',
+  'Samosa': 'VEG',
+  'Bread Pakora': 'VEG',
+  'Chai': 'VEG',
+  'Veg Thali': 'VEG',
+  'Non-Veg Thali': 'NONVEG',
+  'Egg Fried Rice': 'NONVEG',
+  'Gobi Manchurian': 'VEG',
+  'Mushroom Do Pyaza': 'VEG',
+  'Roti': 'VEG',
+  'Fish Curry': 'NONVEG',
+  'Steamed Rice': 'VEG',
+  'Prawn Fry': 'NONVEG',
+  'Appam': 'VEG',
+  'Dal Makhani': 'VEG',
+  'Kadai Paneer': 'VEG',
+  'Butter Naan': 'VEG',
+}
+
+function getFoodType(itemName: string): FoodType {
+  const name = itemName.toLowerCase()
+  if (name.includes('chicken') || name.includes('mutton') || name.includes('fish') || name.includes('prawn') || name.includes('egg') || name.includes('non-veg')) return 'NONVEG'
+  if (name.includes('paneer') || name.includes('dosa') || name.includes('idli') || name.includes('sambar') || name.includes('veg') || name.includes('dal') || name.includes('paratha') || name.includes('puri') || name.includes('samosa')) return 'VEG'
+  for (const [key, val] of Object.entries(foodItemMap)) {
+    if (name.includes(key.toLowerCase())) return val
+  }
+  return 'VEG'
+}
 
 function generateOrders(): Order[] {
   const customerNames = ['Priya M.', 'Arjun K.', 'Neha S.', 'Vikram R.', 'Sneha P.', 'Rahul D.', 'Anita G.', 'Suresh B.', 'Kavita T.', 'Deepak N.']
@@ -193,11 +288,13 @@ function generateOrders(): Order[] {
     const displayHour = hour > 12 ? hour - 12 : hour
     const amount = Math.floor(Math.random() * 800) + 100
 
-    // Pick a random vendor and rider from the actual data
     const vendorIdx = Math.floor(Math.random() * initialVendors.length)
     const riderIdx = Math.floor(Math.random() * initialRiders.length)
     const vendor = initialVendors[vendorIdx]
     const rider = initialRiders[riderIdx]
+    const itemStr = foodItems[Math.floor(Math.random() * foodItems.length)]
+    const itemParts = itemStr.split(', ').map(s => s.trim())
+    const itemFoodTypes = itemParts.map(item => getFoodType(item))
 
     orders.push({
       id: `ORD-${String(1000 + i).padStart(4, '0')}`,
@@ -210,7 +307,8 @@ function generateOrders(): Order[] {
       vendorPhone: vendor.phone,
       rider: rider.name,
       riderPhone: `+91-${rider.aadhaar.slice(-4)}${String(rider.id).padStart(6, '0')}`,
-      items: foodItems[Math.floor(Math.random() * foodItems.length)],
+      items: itemStr,
+      itemsFoodType: itemFoodTypes,
       orderTime: `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${ampm}`,
       orderDate: `2025-0${month}-${String(day).padStart(2, '0')}`,
       amount,
@@ -229,17 +327,36 @@ const emptyVendorForm = {
 const emptyRiderForm = {
   name: '', aadhaar: '', aadhaarFile: '', pan: '', panFile: '', photoFile: '',
   vehicle: '', vehicleFile: '', rcFile: '', dl: '', dlFile: '', city: '', state: '', pincode: '',
-  bankName: '', accNo: '', ifsc: '', branch: '',
+  bankName: '', accNo: '', ifsc: '', branch: '', handicap: 'NO' as 'YES' | 'NO',
+}
+
+const emptyMenuItemForm = {
+  name: '', description: '', category: '', foodType: 'VEG' as FoodType, price: '',
+  photoUrl: '', vendorId: '', vendorName: '',
 }
 
 /* ───────────── NAV ITEMS ───────────── */
 const navItems = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'vendors', label: 'Vendors', icon: Store },
+  { key: 'menuItems', label: 'Food Items', icon: UtensilsCrossed },
   { key: 'riders', label: 'Delivery Partners', icon: Bike },
   { key: 'orders', label: 'Order History', icon: ClipboardList },
   { key: 'payments', label: 'Payments', icon: CreditCard },
 ] as const
+
+/* ───────────── VEG/NONVEG BADGE ───────────── */
+function VegNonVegBadge({ type }: { type: FoodType }) {
+  const isVeg = type === 'VEG'
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${isVeg ? 'bg-green-500/15 text-green-400 border border-green-500/30' : 'bg-red-500/15 text-red-400 border border-red-500/30'}`}>
+      <span className={`flex size-2.5 items-center justify-center rounded-sm border ${isVeg ? 'border-green-500' : 'border-red-500'}`}>
+        <span className={`size-1.5 rounded-full ${isVeg ? 'bg-green-500' : 'bg-red-500'}`} />
+      </span>
+      {type === 'VEG' ? 'VEG' : 'NON-VEG'}
+    </span>
+  )
+}
 
 /* ───────────── STAR RATING ───────────── */
 function StarRating({ rating }: { rating: number }) {
@@ -299,6 +416,30 @@ function FileUpload({ label, value, onChange }: { label: string; value: string; 
   )
 }
 
+/* ───────────── EXCEL DOWNLOAD HELPER ───────────── */
+function downloadCSV(data: Record<string, string | number>[], filename: string) {
+  if (data.length === 0) {
+    toast.error('No data to export')
+    return
+  }
+  const headers = Object.keys(data[0])
+  const csvRows = [
+    headers.join(','),
+    ...data.map(row => headers.map(h => {
+      const val = String(row[h] ?? '')
+      return val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val
+    }).join(','))
+  ]
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${filename}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  toast.success(`${filename}.csv downloaded!`)
+}
+
 /* ═══════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════ */
@@ -310,12 +451,16 @@ export default function Home() {
 
   const [vendors, setVendors] = useState<Vendor[]>(initialVendors)
   const [riders, setRiders] = useState<Rider[]>(initialRiders)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(initialMenuItems)
   const [orders] = useState<Order[]>(generateOrders)
 
   const [vendorSearch, setVendorSearch] = useState('')
   const [vendorSort, setVendorSort] = useState('name-asc')
   const [riderSearch, setRiderSearch] = useState('')
   const [riderSort, setRiderSort] = useState('name-asc')
+  const [menuItemSearch, setMenuItemSearch] = useState('')
+  const [menuItemSort, setMenuItemSort] = useState('name-asc')
+  const [menuItemFilter, setMenuItemFilter] = useState<string>('all')
   const [orderTab, setOrderTab] = useState<string>('live')
   const [orderSearch, setOrderSearch] = useState('')
   const [orderSort, setOrderSort] = useState('date-desc')
@@ -324,15 +469,19 @@ export default function Home() {
 
   const [showAddVendor, setShowAddVendor] = useState(false)
   const [showAddRider, setShowAddRider] = useState(false)
+  const [showAddMenuItem, setShowAddMenuItem] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [detailItem, setDetailItem] = useState<Vendor | Rider | null>(null)
   const [detailType, setDetailType] = useState<'vendor' | 'rider'>('vendor')
+  const [showFoodDetail, setShowFoodDetail] = useState(false)
+  const [selectedFoodItem, setSelectedFoodItem] = useState<MenuItem | null>(null)
 
   const [globalCommission, setGlobalCommission] = useState('15')
   const [globalDeliveryFee, setGlobalDeliveryFee] = useState('30')
 
   const [vendorForm, setVendorForm] = useState({ ...emptyVendorForm })
   const [riderForm, setRiderForm] = useState({ ...emptyRiderForm })
+  const [menuItemForm, setMenuItemForm] = useState({ ...emptyMenuItemForm })
 
   /* ── Computed ── */
   const filteredVendors = useMemo(() => {
@@ -375,6 +524,29 @@ export default function Home() {
     return list
   }, [riders, riderSearch, riderSort])
 
+  const filteredMenuItems = useMemo(() => {
+    let list = [...menuItems]
+    if (menuItemSearch) {
+      const q = menuItemSearch.toLowerCase()
+      list = list.filter(m =>
+        m.name.toLowerCase().includes(q) ||
+        m.category.toLowerCase().includes(q) ||
+        m.vendorName.toLowerCase().includes(q) ||
+        m.description.toLowerCase().includes(q)
+      )
+    }
+    if (menuItemFilter !== 'all') {
+      list = list.filter(m => m.foodType === menuItemFilter)
+    }
+    switch (menuItemSort) {
+      case 'name-asc': list.sort((a, b) => a.name.localeCompare(b.name)); break
+      case 'price-desc': list.sort((a, b) => b.price - a.price); break
+      case 'price-asc': list.sort((a, b) => a.price - b.price); break
+      case 'hotel-asc': list.sort((a, b) => a.vendorName.localeCompare(b.vendorName)); break
+    }
+    return list
+  }, [menuItems, menuItemSearch, menuItemSort, menuItemFilter])
+
   const filteredOrders = useMemo(() => {
     let list = orders.filter(o => o.status === orderTab)
     if (orderSearch) {
@@ -405,14 +577,15 @@ export default function Home() {
   }, [orders, orderTab, orderSearch, orderSort])
 
   /* ── Dashboard stats ── */
+  const pendingMenuItems = menuItems.filter(m => m.status === 'pending').length
   const stats = useMemo(() => [
     { label: 'Hotels Tie-up', count: vendors.length, icon: Store, color: 'text-[#f97316]', bg: 'bg-[#f97316]/10' },
     { label: 'Delivery Partners', count: riders.length, icon: Bike, color: 'text-blue-400', bg: 'bg-blue-400/10' },
+    { label: 'Food Items', count: menuItems.length, icon: UtensilsCrossed, color: 'text-green-400', bg: 'bg-green-400/10' },
     { label: 'Orders Done', count: orders.filter(o => o.status === 'completed').length, icon: CheckCircle2, color: 'text-green-400', bg: 'bg-green-400/10' },
-    { label: 'Orders Cancelled', count: orders.filter(o => o.status === 'cancelled').length, icon: XCircle, color: 'text-red-400', bg: 'bg-red-400/10' },
     { label: 'Ongoing Orders', count: orders.filter(o => o.status === 'live').length, icon: Clock, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-    { label: 'Delay Orders', count: orders.filter(o => o.delayed).length, icon: AlertTriangle, color: 'text-purple-400', bg: 'bg-purple-400/10' },
-  ], [vendors, riders, orders])
+    { label: 'Pending Food Approvals', count: pendingMenuItems, icon: AlertTriangle, color: 'text-purple-400', bg: 'bg-purple-400/10' },
+  ], [vendors, riders, menuItems, orders, pendingMenuItems])
 
   /* ── Handlers ── */
   function handleDeleteVendor(id: number) {
@@ -423,6 +596,11 @@ export default function Home() {
   function handleDeleteRider(id: number) {
     setRiders(prev => prev.filter(r => r.id !== id))
     toast.success('Delivery partner deleted successfully')
+  }
+
+  function handleDeleteMenuItem(id: number) {
+    setMenuItems(prev => prev.filter(m => m.id !== id))
+    toast.success('Food item deleted successfully')
   }
 
   function handleApprove(id: number, type: 'vendor' | 'rider') {
@@ -443,6 +621,16 @@ export default function Home() {
     }
     toast.success(`${type === 'vendor' ? 'Vendor' : 'Delivery partner'} rejected`)
     setShowDetailModal(false)
+  }
+
+  function handleApproveMenuItem(id: number) {
+    setMenuItems(prev => prev.map(m => m.id === id ? { ...m, status: 'approved' as MenuItemStatus } : m))
+    toast.success('Food item approved')
+  }
+
+  function handleRejectMenuItem(id: number) {
+    setMenuItems(prev => prev.map(m => m.id === id ? { ...m, status: 'rejected' as MenuItemStatus } : m))
+    toast.success('Food item rejected')
   }
 
   function handleAddVendor() {
@@ -517,11 +705,37 @@ export default function Home() {
       cancelledDelay: 0,
       totalEarnings: 0,
       deliveryFee: parseFloat(globalDeliveryFee) || 30,
+      handicap: riderForm.handicap,
     }
     setRiders(prev => [...prev, newRider])
     setShowAddRider(false)
     setRiderForm({ ...emptyRiderForm })
     toast.success('Delivery partner added successfully')
+  }
+
+  function handleAddMenuItem() {
+    if (!menuItemForm.name || !menuItemForm.category || !menuItemForm.price || !menuItemForm.vendorId) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+    const vendor = vendors.find(v => v.id === Number(menuItemForm.vendorId))
+    const newItem: MenuItem = {
+      id: Date.now(),
+      name: menuItemForm.name,
+      description: menuItemForm.description,
+      category: menuItemForm.category,
+      foodType: menuItemForm.foodType,
+      price: parseFloat(menuItemForm.price) || 0,
+      photoUrl: menuItemForm.photoUrl,
+      vendorId: Number(menuItemForm.vendorId),
+      vendorName: vendor?.hotel || menuItemForm.vendorName || 'Unknown',
+      status: 'pending',
+      createdAt: new Date().toISOString().split('T')[0],
+    }
+    setMenuItems(prev => [...prev, newItem])
+    setShowAddMenuItem(false)
+    setMenuItemForm({ ...emptyMenuItemForm })
+    toast.success('Food item added successfully')
   }
 
   function handlePayVendor(id: number) {
@@ -550,6 +764,47 @@ export default function Home() {
     setDetailItem(item)
     setDetailType(type)
     setShowDetailModal(true)
+  }
+
+  function openFoodDetail(item: MenuItem) {
+    setSelectedFoodItem(item)
+    setShowFoodDetail(true)
+  }
+
+  function handleExportRiders() {
+    const data = filteredRiders.map(r => ({
+      Name: r.name,
+      Handicap: r.handicap,
+      Vehicle: r.vehicle,
+      City: r.city,
+      Pincode: r.pincode,
+      State: r.state,
+      Rating: r.rating,
+      Deliveries: r.totalDeliveries,
+      Cancelled: r.cancelledDelay,
+      Earnings: r.totalEarnings,
+      DeliveryFee: r.deliveryFee,
+      Status: r.status,
+      BankName: r.bankName,
+      AccountNo: r.accNo,
+      IFSC: r.ifsc,
+      Branch: r.branch,
+    }))
+    downloadCSV(data, `delivery_partners_${new Date().toISOString().split('T')[0]}`)
+  }
+
+  function handleExportMenuItems() {
+    const data = filteredMenuItems.map(m => ({
+      FoodName: m.name,
+      Category: m.category,
+      FoodType: m.foodType,
+      Price: m.price,
+      Hotel: m.vendorName,
+      Description: m.description,
+      Status: m.status,
+      AddedDate: m.createdAt,
+    }))
+    downloadCSV(data, `food_items_${new Date().toISOString().split('T')[0]}`)
   }
 
   /* ═══════════════════════════════════════════
@@ -586,12 +841,10 @@ export default function Home() {
   return (
     <div className="flex min-h-screen bg-[#0f0f1a]">
       {/* ── SIDEBAR ── */}
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
       <aside className={`fixed z-50 flex h-full w-64 flex-col border-r border-white/5 bg-[#1e1e30] transition-transform duration-300 md:static md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        {/* Logo */}
         <div className="flex items-center gap-3 border-b border-white/5 px-5 py-5">
           <div className="flex size-10 items-center justify-center rounded-xl bg-[#f97316]/15">
             <Flame className="size-5 text-[#f97316]" />
@@ -601,11 +854,11 @@ export default function Home() {
             <p className="text-[10px] tracking-widest text-neutral-500 uppercase">Admin Panel</p>
           </div>
         </div>
-        {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems.map(item => {
             const Icon = item.icon
             const active = activeSection === item.key
+            const pendingBadge = item.key === 'menuItems' ? pendingMenuItems : 0
             return (
               <button
                 key={item.key}
@@ -617,12 +870,14 @@ export default function Home() {
                 }`}
               >
                 <Icon className="size-4.5" />
-                {item.label}
+                <span className="flex-1 text-left">{item.label}</span>
+                {pendingBadge > 0 && (
+                  <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">{pendingBadge}</span>
+                )}
               </button>
             )
           })}
         </nav>
-        {/* Logout */}
         <div className="border-t border-white/5 px-3 py-4">
           <button
             onClick={() => { setIsLoggedIn(false); toast.info('Logged out') }}
@@ -636,7 +891,6 @@ export default function Home() {
 
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 overflow-auto">
-        {/* Top bar */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-[#0f0f1a]/80 px-4 py-3 backdrop-blur-lg md:px-6">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(true)} className="rounded-lg p-2 text-neutral-400 hover:bg-white/5 md:hidden">
@@ -699,7 +953,6 @@ export default function Home() {
                   <Plus className="size-4" /> Add Vendor
                 </button>
               </div>
-              {/* Search & Sort */}
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-500" />
@@ -723,7 +976,6 @@ export default function Home() {
                   </SelectContent>
                 </Select>
               </div>
-              {/* Table */}
               <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#1e1e30]">
                 <table className="w-full text-sm">
                   <thead>
@@ -771,6 +1023,154 @@ export default function Home() {
             </div>
           )}
 
+          {/* ── FOOD ITEMS / MENU ITEMS SECTION ── */}
+          {activeSection === 'menuItems' && (
+            <div className="animate-fade-in space-y-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-white">Food Items</h1>
+                  <p className="text-sm text-neutral-500">Manage hotel food menus - approve photos, descriptions & categories</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExportMenuItems}
+                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-neutral-300 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <Download className="size-4" /> Export
+                  </button>
+                  <button
+                    onClick={() => setShowAddMenuItem(true)}
+                    className="flex items-center gap-2 rounded-xl bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#f97316]/20 transition hover:bg-[#ea6c0b] active:scale-95"
+                  >
+                    <Plus className="size-4" /> Add Food Item
+                  </button>
+                </div>
+              </div>
+
+              {/* Search, Filter & Sort */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-500" />
+                  <input
+                    type="text"
+                    placeholder="Search by food name, category, hotel, description..."
+                    value={menuItemSearch}
+                    onChange={e => setMenuItemSearch(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-neutral-500 outline-none transition focus:border-[#f97316]/50 focus:ring-1 focus:ring-[#f97316]/25"
+                  />
+                </div>
+                <Select value={menuItemFilter} onValueChange={setMenuItemFilter}>
+                  <SelectTrigger className="w-full rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300 sm:w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="VEG">VEG Only</SelectItem>
+                    <SelectItem value="NONVEG">NON-VEG Only</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={menuItemSort} onValueChange={setMenuItemSort}>
+                  <SelectTrigger className="w-full rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300 sm:w-52">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                    <SelectItem value="name-asc">Name A-Z</SelectItem>
+                    <SelectItem value="price-desc">Price High-Low</SelectItem>
+                    <SelectItem value="price-asc">Price Low-High</SelectItem>
+                    <SelectItem value="hotel-asc">Hotel A-Z</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Menu Items Table */}
+              <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#1e1e30]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Food Name</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Photo</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">VEG/NON-VEG</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Category</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Price</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Hotel</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Description</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Status</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredMenuItems.length === 0 && (
+                      <tr><td colSpan={9} className="px-4 py-12 text-center text-neutral-500">No food items found</td></tr>
+                    )}
+                    {filteredMenuItems.map(m => (
+                      <tr key={m.id} className="transition hover:bg-white/[0.02]">
+                        <td className="px-4 py-3">
+                          <button onClick={() => openFoodDetail(m)} className="font-medium text-[#f97316] hover:underline cursor-pointer text-left">
+                            {m.name}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          {m.photoUrl ? (
+                            <div className="flex size-12 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5">
+                              <ImageIcon className="size-5 text-neutral-500" />
+                            </div>
+                          ) : (
+                            <div className="flex size-12 items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/[0.02]">
+                              <ImageIcon className="size-5 text-neutral-600" />
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3"><VegNonVegBadge type={m.foodType} /></td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#f97316]/10 px-2 py-0.5 text-xs font-medium text-[#f97316]">
+                            <Tag className="size-2.5" /> {m.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-white">₹{m.price}</td>
+                        <td className="px-4 py-3 text-neutral-300">{m.vendorName}</td>
+                        <td className="px-4 py-3 text-neutral-400 max-w-[200px] truncate text-xs">{m.description || '-'}</td>
+                        <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => openFoodDetail(m)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-[#f97316]/10 hover:text-[#f97316]" title="View Details">
+                              <Eye className="size-4" />
+                            </button>
+                            {m.status === 'pending' && (
+                              <>
+                                <button onClick={() => handleApproveMenuItem(m.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-green-500/10 hover:text-green-400" title="Approve">
+                                  <CheckCircle2 className="size-4" />
+                                </button>
+                                <button onClick={() => handleRejectMenuItem(m.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-500/10 hover:text-red-400" title="Reject">
+                                  <XCircle className="size-4" />
+                                </button>
+                              </>
+                            )}
+                            <button onClick={() => handleDeleteMenuItem(m.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                              <Trash2 className="size-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pending Food Approvals Summary */}
+              {pendingMenuItems > 0 && (
+                <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="size-5 text-yellow-400" />
+                    <div>
+                      <p className="text-sm font-medium text-yellow-400">{pendingMenuItems} food item(s) pending approval</p>
+                      <p className="text-xs text-neutral-500">Review food photos and descriptions before approving</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── DELIVERY PARTNERS SECTION ── */}
           {activeSection === 'riders' && (
             <div className="animate-fade-in space-y-5">
@@ -779,12 +1179,20 @@ export default function Home() {
                   <h1 className="text-2xl font-bold text-white">Delivery Partners</h1>
                   <p className="text-sm text-neutral-500">Manage riders and delivery personnel</p>
                 </div>
-                <button
-                  onClick={() => setShowAddRider(true)}
-                  className="flex items-center gap-2 rounded-xl bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#f97316]/20 transition hover:bg-[#ea6c0b] active:scale-95"
-                >
-                  <Plus className="size-4" /> Add Partner
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExportRiders}
+                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-neutral-300 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <Download className="size-4" /> Export
+                  </button>
+                  <button
+                    onClick={() => setShowAddRider(true)}
+                    className="flex items-center gap-2 rounded-xl bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#f97316]/20 transition hover:bg-[#ea6c0b] active:scale-95"
+                  >
+                    <Plus className="size-4" /> Add Partner
+                  </button>
+                </div>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative flex-1">
@@ -814,6 +1222,7 @@ export default function Home() {
                   <thead>
                     <tr className="border-b border-white/5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Name</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Handicap</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Rating</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Deliveries</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Cancelled</th>
@@ -826,11 +1235,17 @@ export default function Home() {
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {filteredRiders.length === 0 && (
-                      <tr><td colSpan={9} className="px-4 py-12 text-center text-neutral-500">No delivery partners found</td></tr>
+                      <tr><td colSpan={10} className="px-4 py-12 text-center text-neutral-500">No delivery partners found</td></tr>
                     )}
                     {filteredRiders.map(r => (
                       <tr key={r.id} className="transition hover:bg-white/[0.02]">
                         <td className="px-4 py-3 font-medium text-white">{r.name}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${r.handicap === 'YES' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' : 'bg-neutral-500/10 text-neutral-400 border border-neutral-500/20'}`}>
+                            {r.handicap === 'YES' ? <Accessibility className="size-3" /> : null}
+                            {r.handicap}
+                          </span>
+                        </td>
                         <td className="px-4 py-3"><StarRating rating={r.rating} /></td>
                         <td className="px-4 py-3 text-neutral-300">{r.totalDeliveries}</td>
                         <td className="px-4 py-3 text-red-400">{r.cancelledDelay}</td>
@@ -931,52 +1346,66 @@ export default function Home() {
                     {filteredOrders.length === 0 && (
                       <tr><td colSpan={12} className="px-4 py-12 text-center text-neutral-500">No {orderTab} orders found</td></tr>
                     )}
-                    {filteredOrders.map(o => (
-                      <tr key={o.id} className="transition hover:bg-white/[0.02]">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-[#f97316]">{o.id}</span>
-                            {o.delayed && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">
-                                <AlertTriangle className="size-2.5" /> Delayed
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <StatusBadge status={o.status} />
-                            {o.cancelledBy && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-400">
-                                By: {o.cancelledBy}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap font-medium text-white">{o.vendor}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.vendorOwner}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.vendorPhone}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.rider}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.riderPhone}</td>
-                        <td className="px-4 py-3 text-neutral-300 min-w-[220px]">
-                          <div className="flex items-start gap-1.5">
-                            <ShoppingBag className="size-3.5 mt-0.5 shrink-0 text-[#f97316]/60" />
-                            <span className="whitespace-normal leading-snug">{o.items}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-neutral-400">{o.orderDate}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-neutral-400">{o.orderTime}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-[#f97316]">₹{o.amount}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                          <button
-                            onClick={() => setInvoiceOrder(o)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-[#f97316]/10 px-2.5 py-1.5 text-xs font-semibold text-[#f97316] border border-[#f97316]/20 transition hover:bg-[#f97316] hover:text-white"
-                          >
-                            <Eye className="size-3" /> View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredOrders.map(o => {
+                      const itemParts = o.items.split(', ')
+                      return (
+                        <tr key={o.id} className="transition hover:bg-white/[0.02]">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-[#f97316]">{o.id}</span>
+                              {o.delayed && (
+                                <span className="inline-flex items-center gap-0.5 rounded-full bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">
+                                  <AlertTriangle className="size-2.5" /> Delayed
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <StatusBadge status={o.status} />
+                              {o.cancelledBy && (
+                                <span className="inline-flex items-center gap-0.5 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-400">
+                                  By: {o.cancelledBy}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap font-medium text-white">{o.vendor}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.vendorOwner}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.vendorPhone}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.rider}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-neutral-300">{o.riderPhone}</td>
+                          <td className="px-4 py-3 text-neutral-300 min-w-[220px]">
+                            <div className="flex flex-wrap items-start gap-1.5">
+                              <ShoppingBag className="size-3.5 mt-0.5 shrink-0 text-[#f97316]/60" />
+                              <div className="flex flex-wrap gap-1">
+                                {itemParts.map((item, idx) => {
+                                  const ft = o.itemsFoodType?.[idx] || getFoodType(item)
+                                  return (
+                                    <span key={idx} className="inline-flex items-center gap-1">
+                                      <VegNonVegBadge type={ft} />
+                                      <span className="whitespace-normal leading-snug text-xs">{item}</span>
+                                      {idx < itemParts.length - 1 && <span className="text-neutral-600">,</span>}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-neutral-400">{o.orderDate}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-neutral-400">{o.orderTime}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-[#f97316]">₹{o.amount}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right">
+                            <button
+                              onClick={() => setInvoiceOrder(o)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-[#f97316]/10 px-2.5 py-1.5 text-xs font-semibold text-[#f97316] border border-[#f97316]/20 transition hover:bg-[#f97316] hover:text-white"
+                            >
+                              <Eye className="size-3" /> View
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -990,7 +1419,6 @@ export default function Home() {
                 <h1 className="text-2xl font-bold text-white">Payments</h1>
                 <p className="text-sm text-neutral-500">Manage commissions and delivery fees</p>
               </div>
-              {/* Sub-tabs */}
               <div className="flex gap-1 rounded-xl bg-[#1e1e30] p-1">
                 {(['hotel', 'delivery'] as const).map(tab => (
                   <button
@@ -1007,7 +1435,6 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Hotel Commission */}
               {paymentTab === 'hotel' && (
                 <div className="space-y-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -1061,7 +1488,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Delivery Fee */}
               {paymentTab === 'delivery' && (
                 <div className="space-y-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -1124,8 +1550,6 @@ export default function Home() {
             <DialogTitle className="text-xl text-white">Add New Vendor</DialogTitle>
             <DialogDescription className="text-neutral-400">Fill in the vendor details below. Fields marked with * are required.</DialogDescription>
           </DialogHeader>
-
-          {/* Personal / Hotel Section */}
           <div className="space-y-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f97316]">
               <Store className="size-4" /> Hotel Information
@@ -1165,8 +1589,6 @@ export default function Home() {
               <FileUpload label="FSSAI Document" value={vendorForm.fssaiFile} onChange={v => setVendorForm(p => ({ ...p, fssaiFile: v }))} />
             </div>
           </div>
-
-          {/* Address Section */}
           <div className="space-y-4 pt-2">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f97316]">
               <MapPin className="size-4" /> Address
@@ -1191,8 +1613,6 @@ export default function Home() {
               <FileUpload label="Name Board Photo (optional)" value={vendorForm.boardFile} onChange={v => setVendorForm(p => ({ ...p, boardFile: v }))} />
             </div>
           </div>
-
-          {/* Bank Section */}
           <div className="space-y-4 pt-2">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f97316]">
               <Banknote className="size-4" /> Bank Details
@@ -1228,7 +1648,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-
           <DialogFooter className="pt-4">
             <button onClick={() => { setShowAddVendor(false); setVendorForm({ ...emptyVendorForm }) }} className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-neutral-400 transition hover:bg-white/5">
               Cancel
@@ -1249,8 +1668,6 @@ export default function Home() {
             <DialogTitle className="text-xl text-white">Add New Delivery Partner</DialogTitle>
             <DialogDescription className="text-neutral-400">Fill in the rider details below. Fields marked with * are required.</DialogDescription>
           </DialogHeader>
-
-          {/* Personal Section */}
           <div className="space-y-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f97316]">
               <Bike className="size-4" /> Personal Information
@@ -1278,7 +1695,7 @@ export default function Home() {
               <FileUpload label="Vehicle Photo *" value={riderForm.vehicleFile} onChange={v => setRiderForm(p => ({ ...p, vehicleFile: v }))} />
               <FileUpload label="RC Document *" value={riderForm.rcFile} onChange={v => setRiderForm(p => ({ ...p, rcFile: v }))} />
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-neutral-400">Driving Licence Number *</label>
+                <label className="text-xs font-medium text-neutral-400">DL Number *</label>
                 <input value={riderForm.dl} onChange={e => setRiderForm(p => ({ ...p, dl: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
               </div>
               <FileUpload label="DL Document *" value={riderForm.dlFile} onChange={v => setRiderForm(p => ({ ...p, dlFile: v }))} />
@@ -1294,10 +1711,21 @@ export default function Home() {
                 <label className="text-xs font-medium text-neutral-400">Pincode *</label>
                 <input value={riderForm.pincode} onChange={e => setRiderForm(p => ({ ...p, pincode: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
               </div>
+              {/* Handicap Field */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">Handicap *</label>
+                <Select value={riderForm.handicap} onValueChange={v => setRiderForm(p => ({ ...p, handicap: v as 'YES' | 'NO' }))}>
+                  <SelectTrigger className="rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                    <SelectItem value="NO">NO</SelectItem>
+                    <SelectItem value="YES">YES</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
-
-          {/* Bank Section */}
           <div className="space-y-4 pt-2">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f97316]">
               <Banknote className="size-4" /> Bank Details
@@ -1315,13 +1743,12 @@ export default function Home() {
                 <label className="text-xs font-medium text-neutral-400">IFSC Code *</label>
                 <input value={riderForm.ifsc} onChange={e => setRiderForm(p => ({ ...p, ifsc: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 sm:col-span-2">
                 <label className="text-xs font-medium text-neutral-400">Branch Name *</label>
                 <input value={riderForm.branch} onChange={e => setRiderForm(p => ({ ...p, branch: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
               </div>
             </div>
           </div>
-
           <DialogFooter className="pt-4">
             <button onClick={() => { setShowAddRider(false); setRiderForm({ ...emptyRiderForm }) }} className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-neutral-400 transition hover:bg-white/5">
               Cancel
@@ -1334,218 +1761,322 @@ export default function Home() {
       </Dialog>
 
       {/* ═══════════════════════════════════════════
-         INVOICE MODAL
+         ADD MENU ITEM MODAL
          ═══════════════════════════════════════════ */}
-      <Dialog open={!!invoiceOrder} onOpenChange={(open) => { if (!open) setInvoiceOrder(null) }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-xl">
-          {invoiceOrder && (
+      <Dialog open={showAddMenuItem} onOpenChange={setShowAddMenuItem}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-white">Add New Food Item</DialogTitle>
+            <DialogDescription className="text-neutral-400">Add a food item to a hotel menu. All food items need admin approval.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f97316]">
+              <UtensilsCrossed className="size-4" /> Food Details
+            </h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">Food Name *</label>
+                <input value={menuItemForm.name} onChange={e => setMenuItemForm(p => ({ ...p, name: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" placeholder="e.g., Chicken Biryani" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">Category *</label>
+                <input value={menuItemForm.category} onChange={e => setMenuItemForm(p => ({ ...p, category: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" placeholder="e.g., Biryani, South Indian" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">VEG / NON-VEG *</label>
+                <Select value={menuItemForm.foodType} onValueChange={v => setMenuItemForm(p => ({ ...p, foodType: v as FoodType }))}>
+                  <SelectTrigger className="rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                    <SelectItem value="VEG">VEG</SelectItem>
+                    <SelectItem value="NONVEG">NON-VEG</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">Price (₹) *</label>
+                <input type="number" value={menuItemForm.price} onChange={e => setMenuItemForm(p => ({ ...p, price: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" placeholder="e.g., 250" />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-medium text-neutral-400">Description</label>
+                <textarea value={menuItemForm.description} onChange={e => setMenuItemForm(p => ({ ...p, description: e.target.value }))} rows={3} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50 resize-none" placeholder="Describe the food item..." />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">Hotel / Vendor *</label>
+                <Select value={menuItemForm.vendorId} onValueChange={v => {
+                  const vendor = vendors.find(vd => vd.id === Number(v))
+                  setMenuItemForm(p => ({ ...p, vendorId: v, vendorName: vendor?.hotel || '' }))
+                }}>
+                  <SelectTrigger className="rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300">
+                    <SelectValue placeholder="Select Hotel" />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                    {vendors.map(v => (
+                      <SelectItem key={v.id} value={String(v.id)}>{v.hotel}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <FileUpload label="Food Photo" value={menuItemForm.photoUrl} onChange={v => setMenuItemForm(p => ({ ...p, photoUrl: v }))} />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <button onClick={() => { setShowAddMenuItem(false); setMenuItemForm({ ...emptyMenuItemForm }) }} className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-neutral-400 transition hover:bg-white/5">
+              Cancel
+            </button>
+            <button onClick={handleAddMenuItem} className="rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6c0b] active:scale-95">
+              Add Food Item
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════
+         FOOD DETAIL MODAL
+         ═══════════════════════════════════════════ */}
+      <Dialog open={showFoodDetail} onOpenChange={setShowFoodDetail}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-lg">
+          {selectedFoodItem && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-3 text-xl text-white">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-[#f97316]/15">
-                    <ClipboardList className="size-5 text-[#f97316]" />
-                  </div>
-                  Order Invoice
+                <DialogTitle className="text-xl text-white flex items-center gap-3">
+                  {selectedFoodItem.name}
+                  <VegNonVegBadge type={selectedFoodItem.foodType} />
                 </DialogTitle>
-                <DialogDescription className="text-neutral-400">
-                  Invoice for order {invoiceOrder.id}
-                </DialogDescription>
+                <DialogDescription className="text-neutral-400">Food item details</DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-5">
-                {/* Invoice Header */}
-                <div className="rounded-2xl border border-[#f97316]/20 bg-[#f97316]/5 p-5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Flame className="size-5 text-[#f97316]" />
-                        <span className="text-lg font-bold text-white">StreetBite</span>
-                      </div>
-                      <p className="mt-1 text-xs text-neutral-400">Food Delivery Platform</p>
+              {/* Food Photo */}
+              <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                {selectedFoodItem.photoUrl ? (
+                  <div className="flex items-center justify-center bg-black/20 p-4 min-h-[200px]">
+                    <div className="text-center">
+                      <ImageIcon className="size-16 text-neutral-500 mx-auto mb-2" />
+                      <p className="text-xs text-neutral-500">Photo: {selectedFoodItem.photoUrl}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-[#f97316]">INVOICE</p>
-                      <p className="text-xs text-neutral-400">{invoiceOrder.id}</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center p-8 min-h-[200px]">
+                    <div className="text-center">
+                      <ImageIcon className="size-16 text-neutral-600 mx-auto mb-2" />
+                      <p className="text-xs text-neutral-500">No photo uploaded</p>
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Food Details */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Category</p>
+                    <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-[#f97316]">
+                      <Tag className="size-3.5" /> {selectedFoodItem.category}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Price</p>
+                    <p className="mt-1 text-sm font-bold text-white">₹{selectedFoodItem.price}</p>
                   </div>
                 </div>
-
-                {/* Order & Date Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Order Details</h4>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-neutral-400">Order No</span>
-                        <span className="font-semibold text-[#f97316]">{invoiceOrder.id}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-neutral-400">Date</span>
-                        <span className="text-white">{invoiceOrder.orderDate}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-neutral-400">Time</span>
-                        <span className="text-white">{invoiceOrder.orderTime}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-neutral-400">Status</span>
-                        <StatusBadge status={invoiceOrder.status} />
-                      </div>
-                      {invoiceOrder.delayed && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-neutral-400">Delay</span>
-                          <span className="inline-flex items-center gap-0.5 text-xs font-medium text-purple-400">
-                            <AlertTriangle className="size-3" /> Delayed
-                          </span>
-                        </div>
-                      )}
-                      {invoiceOrder.cancelledBy && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-neutral-400">Cancelled By</span>
-                          <span className="text-red-400">{invoiceOrder.cancelledBy}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Customer</h4>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2 text-sm text-white">
-                        <User className="size-3.5 text-[#f97316]/60" />
-                        {invoiceOrder.customer}
-                      </div>
-                    </div>
-                  </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Hotel</p>
+                  <p className="mt-1 text-sm font-medium text-white">{selectedFoodItem.vendorName}</p>
                 </div>
-
-                {/* Vendor Info */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Vendor (Hotel)</h4>
-                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
-                    <div className="flex items-center gap-2 text-sm text-white font-medium">
-                      <Store className="size-3.5 text-[#f97316]/60" />
-                      {invoiceOrder.vendor}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-neutral-300">
-                      <User className="size-3.5 text-neutral-500" />
-                      {invoiceOrder.vendorOwner}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-neutral-300">
-                      <Phone className="size-3.5 text-neutral-500" />
-                      {invoiceOrder.vendorPhone}
-                    </div>
-                  </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Description</p>
+                  <p className="mt-1 text-sm text-neutral-300">{selectedFoodItem.description || 'No description provided'}</p>
                 </div>
-
-                {/* Delivery Partner Info */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Delivery Partner</h4>
-                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
-                    <div className="flex items-center gap-2 text-sm text-white font-medium">
-                      <Bike className="size-3.5 text-[#f97316]/60" />
-                      {invoiceOrder.rider}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-neutral-300">
-                      <Phone className="size-3.5 text-neutral-500" />
-                      {invoiceOrder.riderPhone}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Items Ordered */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Items Ordered</h4>
-                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-                    <div className="flex items-start gap-2">
-                      <ShoppingBag className="size-4 mt-0.5 shrink-0 text-[#f97316]" />
-                      <div className="space-y-1">
-                        {invoiceOrder.items.split(', ').map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-sm text-white">
-                            <span className="size-1.5 shrink-0 rounded-full bg-[#f97316]" />
-                            {item}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Price Breakdown */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Payment Summary</h4>
-                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-neutral-400">Subtotal</span>
-                      <span className="text-white">₹{invoiceOrder.amount}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-neutral-400">Delivery Fee</span>
-                      <span className="text-white">₹30</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-neutral-400">Platform Fee</span>
-                      <span className="text-white">₹5</span>
-                    </div>
-                    <div className="border-t border-white/10 pt-3">
-                      <div className="flex justify-between">
-                        <span className="text-base font-bold text-white">Total</span>
-                        <span className="text-base font-bold text-[#f97316]">₹{invoiceOrder.amount + 35}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="text-center text-xs text-neutral-500 pt-2 border-t border-white/5">
-                  <p>This is a computer-generated invoice from StreetBite.</p>
-                  <p className="mt-1">For support, contact support@streetbite.com</p>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Approval Status</p>
+                  <div className="mt-1"><StatusBadge status={selectedFoodItem.status} /></div>
                 </div>
               </div>
 
-              <DialogFooter className="pt-4 gap-2">
-                <button
-                  onClick={() => { setInvoiceOrder(null) }}
-                  className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-neutral-400 transition hover:bg-white/5"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    window.print()
-                    toast.success('Print dialog opened')
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6c0b] active:scale-95"
-                >
-                  <ClipboardList className="size-4" /> Print Invoice
-                </button>
-              </DialogFooter>
+              {/* Approve/Reject for pending items */}
+              {selectedFoodItem.status === 'pending' && (
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => { handleApproveMenuItem(selectedFoodItem.id); setSelectedFoodItem({ ...selectedFoodItem, status: 'approved' }) }}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-2.5 text-sm font-semibold text-green-400 transition hover:bg-green-500/20 active:scale-95"
+                  >
+                    <CheckCircle2 className="size-4" /> Approve Food
+                  </button>
+                  <button
+                    onClick={() => { handleRejectMenuItem(selectedFoodItem.id); setSelectedFoodItem({ ...selectedFoodItem, status: 'rejected' }) }}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20 active:scale-95"
+                  >
+                    <XCircle className="size-4" /> Reject Food
+                  </button>
+                </div>
+              )}
             </>
           )}
         </DialogContent>
       </Dialog>
 
       {/* ═══════════════════════════════════════════
-         DETAIL VIEW MODAL
+         DETAIL MODAL (VENDOR / RIDER)
          ═══════════════════════════════════════════ */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-2xl">
-          {detailItem && (
+        <DialogContent className="max-h-[85vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-lg">
+          {detailItem && detailType === 'vendor' && (() => {
+            const v = detailItem as Vendor
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-xl text-white">{v.hotel}</DialogTitle>
+                  <DialogDescription className="text-neutral-400">Vendor details</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <InfoRow icon={User} label="Owner" value={v.owner} />
+                  <InfoRow icon={Phone} label="Phone" value={v.phone} />
+                  <InfoRow icon={MapPin} label="Address" value={v.address} />
+                  <InfoRow icon={MapPin} label="City" value={v.city} />
+                  <InfoRow icon={MapPin} label="State" value={v.state} />
+                  <InfoRow icon={MapPin} label="Pincode" value={v.pin} />
+                  <InfoRow icon={Star} label="Rating" value={v.rating.toFixed(1)} />
+                  <InfoRow icon={ShoppingBag} label="Total Orders" value={String(v.totalOrders)} />
+                  <InfoRow icon={XCircle} label="Cancelled" value={String(v.cancelledHotelDelay)} />
+                  <InfoRow icon={IndianRupee} label="Revenue" value={`₹${v.totalRevenue.toLocaleString()}`} />
+                  <InfoRow icon={TrendingUp} label="Commission" value={`${v.commission}%`} />
+                  <div className="border-t border-white/5 pt-3">
+                    <h3 className="text-sm font-semibold text-[#f97316] mb-2">Bank Details</h3>
+                    <InfoRow icon={Banknote} label="Bank" value={v.bankName} />
+                    <InfoRow icon={Banknote} label="Account" value={`${v.accType} - ${v.accNo}`} />
+                    <InfoRow icon={Banknote} label="IFSC" value={v.ifsc} />
+                    <InfoRow icon={Banknote} label="Branch" value={v.branch} />
+                  </div>
+                  <div className="border-t border-white/5 pt-3">
+                    <h3 className="text-sm font-semibold text-[#f97316] mb-2">Status</h3>
+                    <StatusBadge status={v.status} />
+                  </div>
+                </div>
+                {v.status === 'pending' && (
+                  <div className="flex gap-3 pt-4">
+                    <button onClick={() => handleApprove(v.id, 'vendor')} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-2.5 text-sm font-semibold text-green-400 transition hover:bg-green-500/20 active:scale-95">
+                      <CheckCircle2 className="size-4" /> Approve
+                    </button>
+                    <button onClick={() => handleReject(v.id, 'vendor')} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20 active:scale-95">
+                      <XCircle className="size-4" /> Reject
+                    </button>
+                  </div>
+                )}
+              </>
+            )
+          })()}
+          {detailItem && detailType === 'rider' && (() => {
+            const r = detailItem as Rider
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-xl text-white">{r.name}</DialogTitle>
+                  <DialogDescription className="text-neutral-400">Delivery partner details</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <InfoRow icon={Bike} label="Vehicle" value={r.vehicle} />
+                  <InfoRow icon={Accessibility} label="Handicap" value={r.handicap} />
+                  <InfoRow icon={MapPin} label="City" value={r.city} />
+                  <InfoRow icon={MapPin} label="Pincode" value={r.pincode} />
+                  <InfoRow icon={Star} label="Rating" value={r.rating.toFixed(1)} />
+                  <InfoRow icon={Truck} label="Deliveries" value={String(r.totalDeliveries)} />
+                  <InfoRow icon={XCircle} label="Cancelled" value={String(r.cancelledDelay)} />
+                  <InfoRow icon={IndianRupee} label="Earnings" value={`₹${r.totalEarnings.toLocaleString()}`} />
+                  <InfoRow icon={IndianRupee} label="Delivery Fee" value={`₹${r.deliveryFee}`} />
+                  <div className="border-t border-white/5 pt-3">
+                    <h3 className="text-sm font-semibold text-[#f97316] mb-2">Bank Details</h3>
+                    <InfoRow icon={Banknote} label="Bank" value={r.bankName} />
+                    <InfoRow icon={Banknote} label="Account" value={r.accNo} />
+                    <InfoRow icon={Banknote} label="IFSC" value={r.ifsc} />
+                    <InfoRow icon={Banknote} label="Branch" value={r.branch} />
+                  </div>
+                  <div className="border-t border-white/5 pt-3">
+                    <h3 className="text-sm font-semibold text-[#f97316] mb-2">Status</h3>
+                    <StatusBadge status={r.status} />
+                  </div>
+                </div>
+                {r.status === 'pending' && (
+                  <div className="flex gap-3 pt-4">
+                    <button onClick={() => handleApprove(r.id, 'rider')} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-2.5 text-sm font-semibold text-green-400 transition hover:bg-green-500/20 active:scale-95">
+                      <CheckCircle2 className="size-4" /> Approve
+                    </button>
+                    <button onClick={() => handleReject(r.id, 'rider')} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20 active:scale-95">
+                      <XCircle className="size-4" /> Reject
+                    </button>
+                  </div>
+                )}
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════
+         INVOICE MODAL
+         ═══════════════════════════════════════════ */}
+      <Dialog open={!!invoiceOrder} onOpenChange={() => setInvoiceOrder(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-md">
+          {invoiceOrder && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-3 text-xl text-white">
-                  {detailType === 'vendor' ? <Store className="size-5 text-[#f97316]" /> : <Bike className="size-5 text-[#f97316]" />}
-                  {detailType === 'vendor' ? (detailItem as Vendor).hotel : (detailItem as Rider).name}
-                </DialogTitle>
-                <DialogDescription className="flex items-center gap-2 text-neutral-400">
-                  Status: <StatusBadge status={detailItem.status} />
-                </DialogDescription>
+                <DialogTitle className="text-xl text-white">Invoice</DialogTitle>
+                <DialogDescription className="text-neutral-400">{invoiceOrder.id}</DialogDescription>
               </DialogHeader>
-
-              {detailType === 'vendor' ? (
-                <VendorDetailView vendor={detailItem as Vendor} onApprove={() => handleApprove(detailItem.id, 'vendor')} onReject={() => handleReject(detailItem.id, 'vendor')} />
-              ) : (
-                <RiderDetailView rider={detailItem as Rider} onApprove={() => handleApprove(detailItem.id, 'rider')} onReject={() => handleReject(detailItem.id, 'rider')} />
-              )}
+              <div className="space-y-4">
+                <div className="text-center border-b border-white/5 pb-4">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <Flame className="size-5 text-[#f97316]" />
+                    <span className="text-lg font-bold text-white">StreetBite</span>
+                  </div>
+                  <p className="text-xs text-neutral-500">Tax Invoice</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><span className="text-neutral-500">Order No:</span> <span className="text-white font-medium">{invoiceOrder.id}</span></div>
+                  <div><span className="text-neutral-500">Date:</span> <span className="text-white font-medium">{invoiceOrder.orderDate}</span></div>
+                  <div><span className="text-neutral-500">Time:</span> <span className="text-white font-medium">{invoiceOrder.orderTime}</span></div>
+                  <div><span className="text-neutral-500">Status:</span> <StatusBadge status={invoiceOrder.status} /></div>
+                </div>
+                <div className="border-t border-white/5 pt-3 text-xs">
+                  <p className="text-neutral-500 mb-1">Customer</p>
+                  <p className="text-white font-medium">{invoiceOrder.customer}</p>
+                </div>
+                <div className="border-t border-white/5 pt-3 text-xs">
+                  <p className="text-neutral-500 mb-1">Vendor</p>
+                  <p className="text-white font-medium">{invoiceOrder.vendor}</p>
+                  <p className="text-neutral-400">Owner: {invoiceOrder.vendorOwner} | {invoiceOrder.vendorPhone}</p>
+                </div>
+                <div className="border-t border-white/5 pt-3 text-xs">
+                  <p className="text-neutral-500 mb-1">Delivery Partner</p>
+                  <p className="text-white font-medium">{invoiceOrder.rider} - {invoiceOrder.riderPhone}</p>
+                </div>
+                <div className="border-t border-white/5 pt-3 text-xs">
+                  <p className="text-neutral-500 mb-2">Items</p>
+                  <div className="flex flex-wrap gap-1">
+                    {invoiceOrder.items.split(', ').map((item, idx) => {
+                      const ft = invoiceOrder.itemsFoodType?.[idx] || getFoodType(item)
+                      return (
+                        <span key={idx} className="inline-flex items-center gap-1 text-white">
+                          <VegNonVegBadge type={ft} />
+                          {item}
+                          {idx < invoiceOrder.items.split(', ').length - 1 && <span className="text-neutral-600">,</span>}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div className="border-t border-white/5 pt-3 text-xs space-y-1">
+                  <div className="flex justify-between"><span className="text-neutral-500">Subtotal</span><span className="text-white">₹{invoiceOrder.amount - 35}</span></div>
+                  <div className="flex justify-between"><span className="text-neutral-500">Delivery Fee</span><span className="text-white">₹30</span></div>
+                  <div className="flex justify-between"><span className="text-neutral-500">Platform Fee</span><span className="text-white">₹5</span></div>
+                  <div className="flex justify-between pt-2 border-t border-white/10 font-bold"><span className="text-white">Total</span><span className="text-[#f97316]">₹{invoiceOrder.amount}</span></div>
+                </div>
+              </div>
+              <DialogFooter className="pt-4">
+                <button onClick={() => window.print()} className="flex items-center gap-2 rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6c0b] active:scale-95">
+                  Print Invoice
+                </button>
+              </DialogFooter>
             </>
           )}
         </DialogContent>
@@ -1554,183 +2085,13 @@ export default function Home() {
   )
 }
 
-/* ───────────── VENDOR DETAIL VIEW ───────────── */
-function VendorDetailView({ vendor, onApprove, onReject }: { vendor: Vendor; onApprove: () => void; onReject: () => void }) {
-  const docs = [
-    { label: 'Aadhaar', file: vendor.aadhaarFile, no: vendor.aadhaar },
-    { label: 'PAN', file: vendor.panFile, no: vendor.pan },
-    { label: 'GST', file: vendor.gstFile, no: vendor.gst },
-    { label: 'FSSAI', file: vendor.fssaiFile, no: vendor.fssai },
-    { label: 'Name Board', file: vendor.boardFile, no: '' },
-  ].filter(d => d.no || d.file)
-
+/* ── Info Row Helper ── */
+function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
-    <div className="space-y-5">
-      {/* Info grid */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <InfoRow icon={<User className="size-3.5" />} label="Owner" value={vendor.owner} />
-        <InfoRow icon={<Phone className="size-3.5" />} label="Phone" value={vendor.phone} />
-        <InfoRow icon={<MapPin className="size-3.5" />} label="Address" value={vendor.address} />
-        <InfoRow icon={<MapPin className="size-3.5" />} label="City" value={`${vendor.city}, ${vendor.state}`} />
-        <InfoRow icon={<MapPin className="size-3.5" />} label="Pincode" value={vendor.pin} />
-        <InfoRow icon={<Star className="size-3.5" />} label="Rating" value={vendor.rating.toFixed(1)} />
-        <InfoRow icon={<ShoppingBag className="size-3.5" />} label="Total Orders" value={String(vendor.totalOrders)} />
-        <InfoRow icon={<XCircle className="size-3.5" />} label="Cancelled" value={String(vendor.cancelledHotelDelay)} />
-        <InfoRow icon={<DollarSign className="size-3.5" />} label="Total Revenue" value={`₹${vendor.totalRevenue.toLocaleString()}`} />
-        <InfoRow icon={<TrendingUp className="size-3.5" />} label="Commission" value={`${vendor.commission}%`} />
-      </div>
-
-      {/* Bank Details */}
-      <div>
-        <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#f97316]"><Banknote className="size-4" /> Bank Details</h4>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <InfoRow label="Bank" value={vendor.bankName} />
-          <InfoRow label="Account Type" value={vendor.accType} />
-          <InfoRow label="Account No" value={vendor.accNo} />
-          <InfoRow label="IFSC" value={vendor.ifsc} />
-          <InfoRow label="Branch" value={vendor.branch} />
-        </div>
-      </div>
-
-      {/* Documents */}
-      <div>
-        <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#f97316]"><Package className="size-4" /> Documents</h4>
-        <div className="space-y-2">
-          {docs.map(d => (
-            <div key={d.label} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2.5">
-              <div className="text-sm">
-                <span className="font-medium text-white">{d.label}</span>
-                {d.no && <span className="ml-2 text-neutral-400">{d.no}</span>}
-                {d.file && <span className="ml-2 text-xs text-neutral-500">({d.file})</span>}
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-[#f97316]/10 hover:text-[#f97316]">
-                  <Eye className="size-4" />
-                </button>
-                <label className="cursor-pointer rounded-lg p-1.5 text-neutral-400 transition hover:bg-blue-500/10 hover:text-blue-400">
-                  <Upload className="size-4" />
-                  <input type="file" className="hidden" onChange={() => toast.success('Document re-uploaded')} />
-                </label>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Actions */}
-      {vendor.status === 'pending' && (
-        <DialogFooter className="pt-2">
-          <button onClick={onReject} className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-2.5 text-sm font-medium text-red-400 transition hover:bg-red-500/20 active:scale-95">
-            <ShieldX className="size-4" /> Reject
-          </button>
-          <button onClick={onApprove} className="flex items-center gap-2 rounded-xl bg-green-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600 active:scale-95">
-            <ShieldCheck className="size-4" /> Approve
-          </button>
-        </DialogFooter>
-      )}
-      {vendor.status === 'rejected' && (
-        <DialogFooter className="pt-2">
-          <button onClick={onApprove} className="flex items-center gap-2 rounded-xl bg-green-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600 active:scale-95">
-            <ShieldCheck className="size-4" /> Approve Anyway
-          </button>
-        </DialogFooter>
-      )}
-    </div>
-  )
-}
-
-/* ───────────── RIDER DETAIL VIEW ───────────── */
-function RiderDetailView({ rider, onApprove, onReject }: { rider: Rider; onApprove: () => void; onReject: () => void }) {
-  const docs = [
-    { label: 'Aadhaar', file: rider.aadhaarFile, no: rider.aadhaar },
-    { label: 'PAN', file: rider.panFile, no: rider.pan },
-    { label: 'Photo', file: rider.photoFile, no: '' },
-    { label: 'Vehicle Photo', file: rider.vehicleFile, no: rider.vehicle },
-    { label: 'RC', file: rider.rcFile, no: '' },
-    { label: 'Driving Licence', file: rider.dlFile, no: rider.dl },
-  ].filter(d => d.no || d.file)
-
-  return (
-    <div className="space-y-5">
-      {/* Info grid */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <InfoRow icon={<Truck className="size-3.5" />} label="Vehicle" value={rider.vehicle} />
-        <InfoRow icon={<MapPin className="size-3.5" />} label="City" value={`${rider.city}, ${rider.state}`} />
-        <InfoRow icon={<MapPin className="size-3.5" />} label="Pincode" value={rider.pincode} />
-        <InfoRow icon={<Star className="size-3.5" />} label="Rating" value={rider.rating.toFixed(1)} />
-        <InfoRow icon={<Package className="size-3.5" />} label="Total Deliveries" value={String(rider.totalDeliveries)} />
-        <InfoRow icon={<XCircle className="size-3.5" />} label="Cancelled" value={String(rider.cancelledDelay)} />
-        <InfoRow icon={<DollarSign className="size-3.5" />} label="Total Earnings" value={`₹${rider.totalEarnings.toLocaleString()}`} />
-        <InfoRow icon={<Truck className="size-3.5" />} label="Delivery Fee" value={`₹${rider.deliveryFee}`} />
-      </div>
-
-      {/* Bank Details */}
-      <div>
-        <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#f97316]"><Banknote className="size-4" /> Bank Details</h4>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <InfoRow label="Bank" value={rider.bankName} />
-          <InfoRow label="Account No" value={rider.accNo} />
-          <InfoRow label="IFSC" value={rider.ifsc} />
-          <InfoRow label="Branch" value={rider.branch} />
-        </div>
-      </div>
-
-      {/* Documents */}
-      <div>
-        <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#f97316]"><Package className="size-4" /> Documents</h4>
-        <div className="space-y-2">
-          {docs.map(d => (
-            <div key={d.label} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2.5">
-              <div className="text-sm">
-                <span className="font-medium text-white">{d.label}</span>
-                {d.no && <span className="ml-2 text-neutral-400">{d.no}</span>}
-                {d.file && <span className="ml-2 text-xs text-neutral-500">({d.file})</span>}
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-[#f97316]/10 hover:text-[#f97316]">
-                  <Eye className="size-4" />
-                </button>
-                <label className="cursor-pointer rounded-lg p-1.5 text-neutral-400 transition hover:bg-blue-500/10 hover:text-blue-400">
-                  <Upload className="size-4" />
-                  <input type="file" className="hidden" onChange={() => toast.success('Document re-uploaded')} />
-                </label>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Actions */}
-      {rider.status === 'pending' && (
-        <DialogFooter className="pt-2">
-          <button onClick={onReject} className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-2.5 text-sm font-medium text-red-400 transition hover:bg-red-500/20 active:scale-95">
-            <ShieldX className="size-4" /> Reject
-          </button>
-          <button onClick={onApprove} className="flex items-center gap-2 rounded-xl bg-green-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600 active:scale-95">
-            <ShieldCheck className="size-4" /> Approve
-          </button>
-        </DialogFooter>
-      )}
-      {rider.status === 'rejected' && (
-        <DialogFooter className="pt-2">
-          <button onClick={onApprove} className="flex items-center gap-2 rounded-xl bg-green-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600 active:scale-95">
-            <ShieldCheck className="size-4" /> Approve Anyway
-          </button>
-        </DialogFooter>
-      )}
-    </div>
-  )
-}
-
-/* ───────────── INFO ROW HELPER ───────────── */
-function InfoRow({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-xl bg-white/[0.02] px-3 py-2">
-      {icon && <span className="text-neutral-500">{icon}</span>}
-      <div>
-        <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">{label}</p>
-        <p className="text-sm text-white">{value || '—'}</p>
-      </div>
+    <div className="flex items-center gap-2 text-xs">
+      <Icon className="size-3.5 text-neutral-500" />
+      <span className="text-neutral-500 min-w-[80px]">{label}:</span>
+      <span className="text-white font-medium">{value}</span>
     </div>
   )
 }
