@@ -207,6 +207,25 @@ interface NotificationLogItem {
   createdAt: string
 }
 
+interface VendorPaymentItem {
+  id: string
+  vendorId: string
+  vendorName: string
+  amount: number
+  status: string
+  requestedAt: string
+  paidAt: string
+  vendor?: {
+    hotel: string
+    owner: string
+    phone: string
+    bankName: string
+    accNo: string
+    ifsc: string
+    branch: string
+  }
+}
+
 /* ───────────── FOOD TYPE HELPERS ───────────── */
 const foodItemMap: Record<string, FoodType> = {
   'Butter Masala Dosa': 'VEG',
@@ -286,6 +305,10 @@ const emptyCustomerForm = {
 
 const emptyNotificationForm = {
   type: 'push' as string, message: '', recipient: '',
+}
+
+const emptyPaymentRequestForm = {
+  vendorId: '', amount: '',
 }
 
 /* ───────────── NAV ITEMS ───────────── */
@@ -421,9 +444,11 @@ export default function Home() {
   const [complaints, setComplaints] = useState<ComplaintItem[]>([])
   const [appSettings, setAppSettings] = useState<AppSetting[]>([])
   const [notificationLogs, setNotificationLogs] = useState<NotificationLogItem[]>([])
+  const [vendorPayments, setVendorPayments] = useState<VendorPaymentItem[]>([])
 
   const [vendorSearch, setVendorSearch] = useState('')
   const [vendorSort, setVendorSort] = useState('name-asc')
+  const [vendorFilter, setVendorFilter] = useState<string>('all')
   const [riderSearch, setRiderSearch] = useState('')
   const [riderSort, setRiderSort] = useState('name-asc')
   const [menuItemSearch, setMenuItemSearch] = useState('')
@@ -434,6 +459,9 @@ export default function Home() {
   const [orderSort, setOrderSort] = useState('date-desc')
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
   const [paymentTab, setPaymentTab] = useState<string>('hotel')
+  const [showAddPaymentRequest, setShowAddPaymentRequest] = useState(false)
+  const [paymentRequestForm, setPaymentRequestForm] = useState({ ...emptyPaymentRequestForm })
+  const [seedingData, setSeedingData] = useState(false)
 
   const [showAddVendor, setShowAddVendor] = useState(false)
   const [showAddRider, setShowAddRider] = useState(false)
@@ -649,18 +677,37 @@ export default function Home() {
     } catch { /* ignore */ }
   }, [])
 
+  const fetchVendorPayments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/vendor-payments')
+      const data = await res.json()
+      if (data.success && data.payments) {
+        setVendorPayments(data.payments.map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          vendorId: p.vendorId as string,
+          vendorName: (p.vendorName as string) || (p.vendor as Record<string, unknown>)?.hotel as string || '',
+          amount: Number(p.amount) || 0,
+          status: (p.status as string) || 'pending',
+          requestedAt: p.requestedAt ? new Date(p.requestedAt as string).toLocaleDateString() : '',
+          paidAt: p.paidAt ? new Date(p.paidAt as string).toLocaleDateString() : '',
+          vendor: p.vendor as VendorPaymentItem['vendor'],
+        })))
+      }
+    } catch { /* ignore */ }
+  }, [])
+
   const fetchAllData = useCallback(async () => {
     setLoading(true)
-    await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders(), fetchCustomers(), fetchComplaints(), fetchSettings(), fetchNotifications()])
+    await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders(), fetchCustomers(), fetchComplaints(), fetchSettings(), fetchNotifications(), fetchVendorPayments()])
     setLoading(false)
-  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchCustomers, fetchComplaints, fetchSettings, fetchNotifications])
+  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchCustomers, fetchComplaints, fetchSettings, fetchNotifications, fetchVendorPayments])
 
   /* ── Initial load & auto-refresh every 30s ── */
   useEffect(() => {
     if (!isLoggedIn) return
     const loadData = async () => {
       setLoading(true)
-      await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders(), fetchCustomers(), fetchComplaints(), fetchSettings(), fetchNotifications()])
+      await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders(), fetchCustomers(), fetchComplaints(), fetchSettings(), fetchNotifications(), fetchVendorPayments()])
       setLoading(false)
     }
     loadData()
@@ -668,7 +715,7 @@ export default function Home() {
       loadData()
     }, 30000)
     return () => clearInterval(interval)
-  }, [isLoggedIn, fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchCustomers, fetchComplaints, fetchSettings, fetchNotifications])
+  }, [isLoggedIn, fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchCustomers, fetchComplaints, fetchSettings, fetchNotifications, fetchVendorPayments])
 
   /* ── Auto-refresh on navigation ── */
   const handleNavClick = useCallback((key: string) => {
@@ -682,8 +729,9 @@ export default function Home() {
     else if (key === 'complaints') fetchComplaints()
     else if (key === 'settings') fetchSettings()
     else if (key === 'notifications') fetchNotifications()
+    else if (key === 'payments') { fetchVendorPayments(); fetchVendors(); fetchRiders() }
     else if (key === 'dashboard') fetchAllData()
-  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchCustomers, fetchComplaints, fetchSettings, fetchNotifications, fetchAllData])
+  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchCustomers, fetchComplaints, fetchSettings, fetchNotifications, fetchVendorPayments, fetchAllData])
 
   /* ── Computed ── */
   const filteredVendors = useMemo(() => {
@@ -694,17 +742,23 @@ export default function Home() {
         v.hotel.toLowerCase().includes(q) ||
         v.city.toLowerCase().includes(q) ||
         v.pin.includes(q) ||
-        v.state.toLowerCase().includes(q)
+        v.state.toLowerCase().includes(q) ||
+        v.owner.toLowerCase().includes(q) ||
+        v.phone.includes(q)
       )
+    }
+    if (vendorFilter !== 'all') {
+      list = list.filter(v => v.status === vendorFilter)
     }
     switch (vendorSort) {
       case 'name-asc': list.sort((a, b) => a.hotel.localeCompare(b.hotel)); break
       case 'rating-desc': list.sort((a, b) => b.rating - a.rating); break
       case 'orders-desc': list.sort((a, b) => b.totalOrders - a.totalOrders); break
       case 'cancelled-desc': list.sort((a, b) => b.cancelledHotelDelay - a.cancelledHotelDelay); break
+      case 'revenue-desc': list.sort((a, b) => b.totalRevenue - a.totalRevenue); break
     }
     return list
-  }, [vendors, vendorSearch, vendorSort])
+  }, [vendors, vendorSearch, vendorSort, vendorFilter])
 
   const filteredRiders = useMemo(() => {
     let list = [...riders]
@@ -791,7 +845,8 @@ export default function Home() {
     { label: 'Ongoing Orders', count: orders.filter(o => o.status === 'live').length, icon: Clock, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
     { label: 'Open Complaints', count: complaints.filter(c => c.status === 'open').length, icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-400/10' },
     { label: 'Pending Food Approvals', count: pendingMenuItems, icon: AlertTriangle, color: 'text-purple-400', bg: 'bg-purple-400/10' },
-  ], [vendors, riders, customers, menuItems, orders, complaints, pendingMenuItems])
+    { label: 'Payment Requests', count: vendorPayments.filter(p => p.status === 'pending').length, icon: CreditCard, color: 'text-[#f97316]', bg: 'bg-[#f97316]/10' },
+  ], [vendors, riders, customers, menuItems, orders, complaints, pendingMenuItems, vendorPayments])
 
   /* ── Sidebar pending badges ── */
   const sidebarBadges = useMemo(() => ({
@@ -799,7 +854,8 @@ export default function Home() {
     riders: pendingRiders,
     menuItems: pendingMenuItems,
     complaints: complaints.filter(c => c.status === 'open').length,
-  }), [pendingVendors, pendingRiders, pendingMenuItems, complaints])
+    payments: vendorPayments.filter(p => p.status === 'pending').length,
+  }), [pendingVendors, pendingRiders, pendingMenuItems, complaints, vendorPayments])
 
   /* ── Handlers ── */
   async function handleDeleteVendor(id: string) {
@@ -1153,6 +1209,28 @@ export default function Home() {
     setShowFoodDetail(true)
   }
 
+  function handleExportVendors() {
+    const data = filteredVendors.map(v => ({
+      HotelName: v.hotel,
+      Owner: v.owner,
+      Phone: v.phone,
+      City: v.city,
+      Pincode: v.pin,
+      State: v.state,
+      Rating: v.rating,
+      TotalOrders: v.totalOrders,
+      Cancelled: v.cancelledHotelDelay,
+      TotalRevenue: v.totalRevenue,
+      Commission: v.commission,
+      Status: v.status,
+      BankName: v.bankName,
+      AccountNo: v.accNo,
+      IFSC: v.ifsc,
+      Branch: v.branch,
+    }))
+    downloadCSV(data, `vendors_${new Date().toISOString().split('T')[0]}`)
+  }
+
   function handleExportRiders() {
     const data = filteredRiders.map(r => ({
       Name: r.name,
@@ -1290,6 +1368,94 @@ export default function Home() {
       if (data.success) { toast.success('Notification deleted'); fetchNotifications() }
       else toast.error('Failed to delete notification')
     } catch { toast.error('Failed to delete notification') }
+  }
+
+  async function handleLoadDemoData() {
+    if (!confirm('This will add sample vendors, riders, menu items, and orders to your database. Continue?')) return
+    setSeedingData(true)
+    try {
+      const res = await fetch('/api/seed')
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Demo data loaded successfully! Refreshing...')
+        fetchAllData()
+      } else {
+        toast.error('Failed to load demo data')
+      }
+    } catch {
+      toast.error('Failed to load demo data')
+    }
+    setSeedingData(false)
+  }
+
+  async function handleAddPaymentRequest() {
+    if (!paymentRequestForm.vendorId || !paymentRequestForm.amount) {
+      toast.error('Please select a vendor and enter amount')
+      return
+    }
+    try {
+      const res = await fetch('/api/vendor-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendorId: paymentRequestForm.vendorId,
+          amount: paymentRequestForm.amount,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) { toast.success('Payment request created'); fetchVendorPayments(); fetchVendors() }
+      else toast.error('Failed to create payment request')
+    } catch { toast.error('Failed to create payment request') }
+    setShowAddPaymentRequest(false)
+    setPaymentRequestForm({ ...emptyPaymentRequestForm })
+  }
+
+  async function handleApprovePayment(id: string) {
+    try {
+      const res = await fetch('/api/vendor-payments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'approved' }),
+      })
+      const data = await res.json()
+      if (data.success) { toast.success('Payment request approved'); fetchVendorPayments(); fetchVendors() }
+      else toast.error('Failed to approve payment')
+    } catch { toast.error('Failed to approve payment') }
+  }
+
+  async function handlePayPayment(id: string) {
+    try {
+      const res = await fetch('/api/vendor-payments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'paid' }),
+      })
+      const data = await res.json()
+      if (data.success) { toast.success('Payment processed successfully'); fetchVendorPayments(); fetchVendors() }
+      else toast.error('Failed to process payment')
+    } catch { toast.error('Failed to process payment') }
+  }
+
+  async function handleRejectPayment(id: string) {
+    try {
+      const res = await fetch('/api/vendor-payments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'rejected' }),
+      })
+      const data = await res.json()
+      if (data.success) { toast.success('Payment request rejected'); fetchVendorPayments() }
+      else toast.error('Failed to reject payment')
+    } catch { toast.error('Failed to reject payment') }
+  }
+
+  async function handleDeletePayment(id: string) {
+    try {
+      const res = await fetch(`/api/vendor-payments?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) { toast.success('Payment request deleted'); fetchVendorPayments() }
+      else toast.error('Failed to delete payment request')
+    } catch { toast.error('Failed to delete payment request') }
   }
 
   const filteredCustomers = useMemo(() => {
@@ -1431,9 +1597,19 @@ export default function Home() {
           {/* ── DASHBOARD SECTION ── */}
           {activeSection === 'dashboard' && (
             <div className="animate-fade-in space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-                <p className="text-sm text-neutral-500">Welcome back! Here&apos;s your overview.</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+                  <p className="text-sm text-neutral-500">Welcome back! Here&apos;s your overview.</p>
+                </div>
+                <button
+                  onClick={handleLoadDemoData}
+                  disabled={seedingData}
+                  className="flex items-center gap-2 rounded-xl border border-[#f97316]/30 bg-[#f97316]/10 px-4 py-2.5 text-sm font-semibold text-[#f97316] transition hover:bg-[#f97316]/20 active:scale-95 disabled:opacity-50"
+                >
+                  <Package className={`size-4 ${seedingData ? 'animate-spin' : ''}`} />
+                  {seedingData ? 'Loading Demo Data...' : 'Load Demo Data'}
+                </button>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {stats.map(s => {
@@ -1490,24 +1666,43 @@ export default function Home() {
                   <h1 className="text-2xl font-bold text-white">Vendors</h1>
                   <p className="text-sm text-neutral-500">Manage hotel and restaurant partners</p>
                 </div>
-                <button
-                  onClick={() => setShowAddVendor(true)}
-                  className="flex items-center gap-2 rounded-xl bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#f97316]/20 transition hover:bg-[#ea6c0b] active:scale-95"
-                >
-                  <Plus className="size-4" /> Add Vendor
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExportVendors}
+                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-neutral-300 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <Download className="size-4" /> Export
+                  </button>
+                  <button
+                    onClick={() => setShowAddVendor(true)}
+                    className="flex items-center gap-2 rounded-xl bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#f97316]/20 transition hover:bg-[#ea6c0b] active:scale-95"
+                  >
+                    <Plus className="size-4" /> Add Vendor
+                  </button>
+                </div>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-500" />
                   <input
                     type="text"
-                    placeholder="Search by name, city, pincode, state..."
+                    placeholder="Search by name, owner, city, phone, pincode..."
                     value={vendorSearch}
                     onChange={e => setVendorSearch(e.target.value)}
                     className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-neutral-500 outline-none transition focus:border-[#f97316]/50 focus:ring-1 focus:ring-[#f97316]/25"
                   />
                 </div>
+                <Select value={vendorFilter} onValueChange={setVendorFilter}>
+                  <SelectTrigger className="w-full rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300 sm:w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={vendorSort} onValueChange={setVendorSort}>
                   <SelectTrigger className="w-full rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300 sm:w-52">
                     <SelectValue />
@@ -1517,6 +1712,7 @@ export default function Home() {
                     <SelectItem value="rating-desc">Rating High-Low</SelectItem>
                     <SelectItem value="orders-desc">Orders High-Low</SelectItem>
                     <SelectItem value="cancelled-desc">Cancelled High-Low</SelectItem>
+                    <SelectItem value="revenue-desc">Revenue High-Low</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1525,29 +1721,31 @@ export default function Home() {
                   <thead>
                     <tr className="border-b border-white/5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Hotel Name</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Owner</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Rating</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Orders</th>
-                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Cancelled</th>
-                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Pincode</th>
-                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">State</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Revenue</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Commission</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">City</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">State</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Status</th>
                       <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {filteredVendors.length === 0 && (
-                      <tr><td colSpan={9} className="px-4 py-12 text-center text-neutral-500">No vendors found</td></tr>
+                      <tr><td colSpan={10} className="px-4 py-12 text-center text-neutral-500">No vendors found</td></tr>
                     )}
                     {filteredVendors.map(v => (
                       <tr key={v.id} className="transition hover:bg-white/[0.02]">
                         <td className="px-4 py-3 font-medium text-white">{v.hotel}</td>
+                        <td className="px-4 py-3 text-neutral-300">{v.owner}</td>
                         <td className="px-4 py-3"><StarRating rating={v.rating} /></td>
                         <td className="px-4 py-3 text-neutral-300">{v.totalOrders}</td>
-                        <td className="px-4 py-3 text-red-400">{v.cancelledHotelDelay}</td>
-                        <td className="px-4 py-3 text-neutral-300">{v.pin}</td>
-                        <td className="px-4 py-3 text-neutral-300">{v.state}</td>
+                        <td className="px-4 py-3 font-bold text-[#f97316]">₹{v.totalRevenue.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-neutral-300">{v.commission}%</td>
                         <td className="px-4 py-3 text-neutral-300">{v.city}</td>
+                        <td className="px-4 py-3 text-neutral-300">{v.state}</td>
                         <td className="px-4 py-3"><StatusBadge status={v.status} /></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
@@ -1961,10 +2159,10 @@ export default function Home() {
             <div className="animate-fade-in space-y-5">
               <div>
                 <h1 className="text-2xl font-bold text-white">Payments</h1>
-                <p className="text-sm text-neutral-500">Manage commissions and delivery fees</p>
+                <p className="text-sm text-neutral-500">Manage commissions, delivery fees, and hotel payment requests</p>
               </div>
               <div className="flex gap-1 rounded-xl bg-[#1e1e30] p-1">
-                {(['hotel', 'delivery'] as const).map(tab => (
+                {(['hotel', 'delivery', 'requests'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setPaymentTab(tab)}
@@ -1974,7 +2172,10 @@ export default function Home() {
                         : 'text-neutral-400 hover:text-white'
                     }`}
                   >
-                    {tab === 'hotel' ? 'Hotel Commission' : 'Delivery Fee'}
+                    {tab === 'hotel' ? 'Hotel Commission' : tab === 'delivery' ? 'Delivery Fee' : 'Payment Requests'}
+                    {tab === 'requests' && vendorPayments.filter(p => p.status === 'pending').length > 0 && (
+                      <span className="ml-2 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">{vendorPayments.filter(p => p.status === 'pending').length}</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -2077,6 +2278,98 @@ export default function Home() {
                         No approved delivery partners
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {paymentTab === 'requests' && (
+                <div className="space-y-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f97316]">
+                      <DollarSign className="size-4" /> Hotel Payment Requests
+                    </h3>
+                    <button
+                      onClick={() => setShowAddPaymentRequest(true)}
+                      className="flex items-center gap-2 rounded-xl bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#f97316]/20 transition hover:bg-[#ea6c0b] active:scale-95"
+                    >
+                      <Plus className="size-4" /> Add Payment Request
+                    </button>
+                  </div>
+
+                  {/* Pending Payment Requests Summary */}
+                  {vendorPayments.filter(p => p.status === 'pending').length > 0 && (
+                    <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className="size-5 text-yellow-400" />
+                        <div>
+                          <p className="text-sm font-medium text-yellow-400">{vendorPayments.filter(p => p.status === 'pending').length} payment request(s) pending approval</p>
+                          <p className="text-xs text-neutral-500">Total pending amount: ₹{vendorPayments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment Requests Table */}
+                  <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#1e1e30]">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                          <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Hotel Name</th>
+                          <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Amount</th>
+                          <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Bank Details</th>
+                          <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Requested</th>
+                          <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Status</th>
+                          <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {vendorPayments.length === 0 && (
+                          <tr><td colSpan={6} className="px-4 py-12 text-center text-neutral-500">No payment requests found</td></tr>
+                        )}
+                        {vendorPayments.map(p => (
+                          <tr key={p.id} className="transition hover:bg-white/[0.02]">
+                            <td className="px-4 py-3 font-medium text-white">{p.vendorName}</td>
+                            <td className="px-4 py-3 font-bold text-[#f97316]">₹{p.amount.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-neutral-400 text-xs">
+                              {p.vendor ? (
+                                <div>
+                                  <div>{p.vendor.bankName || '-'}</div>
+                                  <div>A/C: {p.vendor.accNo || '-'}</div>
+                                  <div>IFSC: {p.vendor.ifsc || '-'}</div>
+                                </div>
+                              ) : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-neutral-400">{p.requestedAt}</td>
+                            <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                {p.status === 'pending' && (
+                                  <>
+                                    <button onClick={() => handleApprovePayment(p.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-green-500/10 hover:text-green-400" title="Approve">
+                                      <CheckCircle2 className="size-4" />
+                                    </button>
+                                    <button onClick={() => handleRejectPayment(p.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-500/10 hover:text-red-400" title="Reject">
+                                      <XCircle className="size-4" />
+                                    </button>
+                                  </>
+                                )}
+                                {p.status === 'approved' && (
+                                  <button onClick={() => handlePayPayment(p.id)} className="flex items-center gap-1 rounded-lg bg-green-500/10 border border-green-500/20 px-2.5 py-1.5 text-xs font-semibold text-green-400 transition hover:bg-green-500/20 active:scale-95" title="Mark as Paid">
+                                    <IndianRupee className="size-3" /> Pay
+                                  </button>
+                                )}
+                                {p.status === 'paid' && (
+                                  <span className="text-xs text-green-400">Paid on {p.paidAt}</span>
+                                )}
+                                <button onClick={() => handleDeletePayment(p.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                                  <Trash2 className="size-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -3017,6 +3310,73 @@ export default function Home() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════
+         ADD PAYMENT REQUEST MODAL
+         ═══════════════════════════════════════════ */}
+      <Dialog open={showAddPaymentRequest} onOpenChange={setShowAddPaymentRequest}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-white">Add Payment Request</DialogTitle>
+            <DialogDescription className="text-neutral-400">Create a payment request for a hotel vendor payout.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-neutral-400">Hotel / Vendor *</label>
+              <Select value={paymentRequestForm.vendorId} onValueChange={v => {
+                const vendor = vendors.find(vd => vd.id === v)
+                setPaymentRequestForm(p => ({ ...p, vendorId: v, amount: vendor ? String(Math.round(vendor.totalRevenue - (vendor.totalRevenue * vendor.commission / 100))) : '' }))
+              }}>
+                <SelectTrigger className="rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300">
+                  <SelectValue placeholder="Select Hotel" />
+                </SelectTrigger>
+                <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                  {vendors.filter(v => v.status === 'approved' && v.totalRevenue > 0).map(v => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.hotel} (₹{v.totalRevenue.toLocaleString()} revenue, {v.commission}% commission)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-neutral-400">Payout Amount (₹) *</label>
+              <input
+                type="number"
+                value={paymentRequestForm.amount}
+                onChange={e => setPaymentRequestForm(p => ({ ...p, amount: e.target.value }))}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50"
+                placeholder="Enter payout amount"
+              />
+            </div>
+            {paymentRequestForm.vendorId && (() => {
+              const vendor = vendors.find(v => v.id === paymentRequestForm.vendorId)
+              if (!vendor) return null
+              const commissionAmt = Math.round(vendor.totalRevenue * vendor.commission / 100)
+              const vendorShare = vendor.totalRevenue - commissionAmt
+              return (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-1">
+                  <p className="text-xs text-neutral-500">Vendor Earnings Breakdown</p>
+                  <div className="flex justify-between text-xs"><span className="text-neutral-400">Total Revenue:</span><span className="text-white font-medium">₹{vendor.totalRevenue.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-neutral-400">Platform Commission ({vendor.commission}%):</span><span className="text-[#f97316] font-medium">₹{commissionAmt.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-xs border-t border-white/5 pt-1"><span className="text-neutral-400">Vendor Share:</span><span className="text-green-400 font-bold">₹{vendorShare.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-neutral-400">Bank:</span><span className="text-white">{vendor.bankName}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-neutral-400">A/C:</span><span className="text-white">{vendor.accNo}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-neutral-400">IFSC:</span><span className="text-white">{vendor.ifsc}</span></div>
+                </div>
+              )
+            })()}
+          </div>
+          <DialogFooter className="pt-4">
+            <button onClick={() => { setShowAddPaymentRequest(false); setPaymentRequestForm({ ...emptyPaymentRequestForm }) }} className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-neutral-400 transition hover:bg-white/5">
+              Cancel
+            </button>
+            <button onClick={handleAddPaymentRequest} className="rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6c0b] active:scale-95">
+              Create Request
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -41,6 +41,7 @@ model Vendor {
   updatedAt           DateTime @updatedAt
   menuItems           MenuItem[]
   orders              Order[]
+  paymentRequests     VendorPayment[]
 }
 
 model MenuItem {
@@ -156,4 +157,17 @@ model NotificationLog {
   recipient String?
   status    String   @default("sent")
   createdAt DateTime @default(now())
+}
+
+model VendorPayment {
+  id          String   @id @default(cuid())
+  vendorId    String
+  vendorName  String?
+  amount      Float
+  status      String   @default("pending")
+  requestedAt DateTime @default(now())
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  vendor      Vendor   @relation(fields: [vendorId], references: [id])
 }
