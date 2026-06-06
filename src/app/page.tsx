@@ -62,6 +62,12 @@ import {
   FileText,
   Accessibility,
   RefreshCw,
+  Bell,
+  Settings as SettingsIcon,
+  MessageSquare,
+  Send,
+  Save,
+  Mail,
 } from 'lucide-react'
 
 /* ───────────── TYPES ───────────── */
@@ -163,6 +169,44 @@ interface MenuItem {
   createdAt: string
 }
 
+interface Customer {
+  id: string
+  name: string
+  phone: string
+  email: string
+  address: string
+  city: string
+  state: string
+  pincode: string
+  totalOrders: number
+  totalSpent: number
+  status: string
+}
+
+interface ComplaintItem {
+  id: string
+  orderId: string
+  subject: string
+  description: string
+  status: string
+  createdAt: string
+}
+
+interface AppSetting {
+  id: string
+  key: string
+  value: string
+}
+
+interface NotificationLogItem {
+  id: string
+  type: string
+  message: string
+  recipient: string
+  status: string
+  createdAt: string
+}
+
 /* ───────────── FOOD TYPE HELPERS ───────────── */
 const foodItemMap: Record<string, FoodType> = {
   'Butter Masala Dosa': 'VEG',
@@ -236,14 +280,26 @@ const emptyMenuItemForm = {
   photoUrl: '', vendorId: '', vendorName: '',
 }
 
+const emptyCustomerForm = {
+  name: '', phone: '', email: '', address: '', city: '', state: '', pincode: '',
+}
+
+const emptyNotificationForm = {
+  type: 'push' as string, message: '', recipient: '',
+}
+
 /* ───────────── NAV ITEMS ───────────── */
 const navItems = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'vendors', label: 'Vendors', icon: Store },
   { key: 'menuItems', label: 'Food Items', icon: UtensilsCrossed },
   { key: 'riders', label: 'Delivery Partners', icon: Bike },
+  { key: 'customers', label: 'Customers', icon: Users },
   { key: 'orders', label: 'Order History', icon: ClipboardList },
+  { key: 'complaints', label: 'Complaints', icon: ShieldAlert },
   { key: 'payments', label: 'Payments', icon: CreditCard },
+  { key: 'settings', label: 'Settings', icon: SettingsIcon },
+  { key: 'notifications', label: 'Notifications', icon: Bell },
 ] as const
 
 /* ───────────── VEG/NONVEG BADGE ───────────── */
@@ -283,6 +339,12 @@ function StatusBadge({ status }: { status: string }) {
     live: { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: <Clock className="size-3" /> },
     completed: { bg: 'bg-green-500/10', text: 'text-green-400', icon: <CheckCircle2 className="size-3" /> },
     cancelled: { bg: 'bg-red-500/10', text: 'text-red-400', icon: <XCircle className="size-3" /> },
+    open: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', icon: <AlertTriangle className="size-3" /> },
+    'in-progress': { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: <Clock className="size-3" /> },
+    resolved: { bg: 'bg-green-500/10', text: 'text-green-400', icon: <CheckCircle2 className="size-3" /> },
+    closed: { bg: 'bg-neutral-500/10', text: 'text-neutral-400', icon: <XCircle className="size-3" /> },
+    active: { bg: 'bg-green-500/10', text: 'text-green-400', icon: <CheckCircle2 className="size-3" /> },
+    sent: { bg: 'bg-green-500/10', text: 'text-green-400', icon: <CheckCircle2 className="size-3" /> },
   }
   const c = cfg[status] || cfg.pending
   return (
@@ -355,6 +417,10 @@ export default function Home() {
   const [riders, setRiders] = useState<Rider[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [orders, setOrders] = useState<Order[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [complaints, setComplaints] = useState<ComplaintItem[]>([])
+  const [appSettings, setAppSettings] = useState<AppSetting[]>([])
+  const [notificationLogs, setNotificationLogs] = useState<NotificationLogItem[]>([])
 
   const [vendorSearch, setVendorSearch] = useState('')
   const [vendorSort, setVendorSort] = useState('name-asc')
@@ -384,6 +450,16 @@ export default function Home() {
   const [vendorForm, setVendorForm] = useState({ ...emptyVendorForm })
   const [riderForm, setRiderForm] = useState({ ...emptyRiderForm })
   const [menuItemForm, setMenuItemForm] = useState({ ...emptyMenuItemForm })
+  const [customerForm, setCustomerForm] = useState({ ...emptyCustomerForm })
+  const [notificationForm, setNotificationForm] = useState({ ...emptyNotificationForm })
+
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [complaintSearch, setComplaintSearch] = useState('')
+  const [showAddCustomer, setShowAddCustomer] = useState(false)
+  const [showComplaintDetail, setShowComplaintDetail] = useState(false)
+  const [selectedComplaint, setSelectedComplaint] = useState<ComplaintItem | null>(null)
+  const [settingKey, setSettingKey] = useState('')
+  const [settingValue, setSettingValue] = useState('')
 
   /* ── API Data Fetching ── */
   const fetchVendors = useCallback(async () => {
@@ -513,18 +589,78 @@ export default function Home() {
     } catch { /* ignore fetch errors */ }
   }, [])
 
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/customers')
+      const data = await res.json()
+      if (data.success && data.customers) {
+        setCustomers(data.customers.map((c: Record<string, unknown>) => ({
+          ...c,
+          email: c.email || '',
+          address: c.address || '',
+          city: c.city || '',
+          state: c.state || '',
+          pincode: c.pincode || '',
+          totalOrders: Number(c.totalOrders) || 0,
+          totalSpent: Number(c.totalSpent) || 0,
+          status: (c.status as string) || 'active',
+        })))
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const fetchComplaints = useCallback(async () => {
+    try {
+      const res = await fetch('/api/complaints')
+      const data = await res.json()
+      if (data.success && data.complaints) {
+        setComplaints(data.complaints.map((c: Record<string, unknown>) => ({
+          ...c,
+          orderId: c.orderId || '',
+          status: (c.status as string) || 'open',
+          createdAt: c.createdAt ? new Date(c.createdAt as string).toLocaleDateString() : '',
+        })))
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/app-settings')
+      const data = await res.json()
+      if (data.success && data.settings) {
+        setAppSettings(data.settings)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications')
+      const data = await res.json()
+      if (data.success && data.notifications) {
+        setNotificationLogs(data.notifications.map((n: Record<string, unknown>) => ({
+          ...n,
+          recipient: n.recipient || '',
+          status: (n.status as string) || 'sent',
+          createdAt: n.createdAt ? new Date(n.createdAt as string).toLocaleString() : '',
+        })))
+      }
+    } catch { /* ignore */ }
+  }, [])
+
   const fetchAllData = useCallback(async () => {
     setLoading(true)
-    await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders()])
+    await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders(), fetchCustomers(), fetchComplaints(), fetchSettings(), fetchNotifications()])
     setLoading(false)
-  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders])
+  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchCustomers, fetchComplaints, fetchSettings, fetchNotifications])
 
   /* ── Initial load & auto-refresh every 30s ── */
   useEffect(() => {
     if (!isLoggedIn) return
     const loadData = async () => {
       setLoading(true)
-      await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders()])
+      await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders(), fetchCustomers(), fetchComplaints(), fetchSettings(), fetchNotifications()])
       setLoading(false)
     }
     loadData()
@@ -532,19 +668,22 @@ export default function Home() {
       loadData()
     }, 30000)
     return () => clearInterval(interval)
-  }, [isLoggedIn, fetchVendors, fetchRiders, fetchMenuItems, fetchOrders])
+  }, [isLoggedIn, fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchCustomers, fetchComplaints, fetchSettings, fetchNotifications])
 
   /* ── Auto-refresh on navigation ── */
   const handleNavClick = useCallback((key: string) => {
     setActiveSection(key)
     setSidebarOpen(false)
-    // Fetch latest data when navigating to a section
     if (key === 'vendors') fetchVendors()
     else if (key === 'riders') fetchRiders()
     else if (key === 'menuItems') fetchMenuItems()
     else if (key === 'orders') fetchOrders()
+    else if (key === 'customers') fetchCustomers()
+    else if (key === 'complaints') fetchComplaints()
+    else if (key === 'settings') fetchSettings()
+    else if (key === 'notifications') fetchNotifications()
     else if (key === 'dashboard') fetchAllData()
-  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchAllData])
+  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchCustomers, fetchComplaints, fetchSettings, fetchNotifications, fetchAllData])
 
   /* ── Computed ── */
   const filteredVendors = useMemo(() => {
@@ -646,18 +785,21 @@ export default function Home() {
   const stats = useMemo(() => [
     { label: 'Hotels Tie-up', count: vendors.length, icon: Store, color: 'text-[#f97316]', bg: 'bg-[#f97316]/10' },
     { label: 'Delivery Partners', count: riders.length, icon: Bike, color: 'text-blue-400', bg: 'bg-blue-400/10' },
+    { label: 'Customers', count: customers.length, icon: Users, color: 'text-cyan-400', bg: 'bg-cyan-400/10' },
     { label: 'Food Items', count: menuItems.length, icon: UtensilsCrossed, color: 'text-green-400', bg: 'bg-green-400/10' },
     { label: 'Orders Done', count: orders.filter(o => o.status === 'completed').length, icon: CheckCircle2, color: 'text-green-400', bg: 'bg-green-400/10' },
     { label: 'Ongoing Orders', count: orders.filter(o => o.status === 'live').length, icon: Clock, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
+    { label: 'Open Complaints', count: complaints.filter(c => c.status === 'open').length, icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-400/10' },
     { label: 'Pending Food Approvals', count: pendingMenuItems, icon: AlertTriangle, color: 'text-purple-400', bg: 'bg-purple-400/10' },
-  ], [vendors, riders, menuItems, orders, pendingMenuItems])
+  ], [vendors, riders, customers, menuItems, orders, complaints, pendingMenuItems])
 
   /* ── Sidebar pending badges ── */
   const sidebarBadges = useMemo(() => ({
     vendors: pendingVendors,
     riders: pendingRiders,
     menuItems: pendingMenuItems,
-  }), [pendingVendors, pendingRiders, pendingMenuItems])
+    complaints: complaints.filter(c => c.status === 'open').length,
+  }), [pendingVendors, pendingRiders, pendingMenuItems, complaints])
 
   /* ── Handlers ── */
   async function handleDeleteVendor(id: string) {
@@ -1046,6 +1188,127 @@ export default function Home() {
     }))
     downloadCSV(data, `food_items_${new Date().toISOString().split('T')[0]}`)
   }
+
+  async function handleDeleteCustomer(id: string) {
+    try {
+      const res = await fetch(`/api/customers?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) { toast.success('Customer deleted'); fetchCustomers() }
+      else toast.error('Failed to delete customer')
+    } catch { toast.error('Failed to delete customer') }
+  }
+
+  async function handleAddCustomer() {
+    if (!customerForm.name || !customerForm.phone) {
+      toast.error('Name and Phone are required')
+      return
+    }
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...customerForm, status: 'active', totalOrders: 0, totalSpent: 0 }),
+      })
+      const data = await res.json()
+      if (data.success) { toast.success('Customer added'); fetchCustomers() }
+      else toast.error('Failed to add customer')
+    } catch { toast.error('Failed to add customer') }
+    setShowAddCustomer(false)
+    setCustomerForm({ ...emptyCustomerForm })
+  }
+
+  async function handleUpdateComplaintStatus(id: string, status: string) {
+    try {
+      const res = await fetch('/api/complaints', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      })
+      const data = await res.json()
+      if (data.success) { toast.success(`Complaint marked as ${status}`); fetchComplaints() }
+      else toast.error('Failed to update complaint')
+    } catch { toast.error('Failed to update complaint') }
+    setShowComplaintDetail(false)
+  }
+
+  async function handleDeleteComplaint(id: string) {
+    try {
+      const res = await fetch(`/api/complaints?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) { toast.success('Complaint deleted'); fetchComplaints() }
+      else toast.error('Failed to delete complaint')
+    } catch { toast.error('Failed to delete complaint') }
+  }
+
+  async function handleSaveSetting() {
+    if (!settingKey || !settingValue) {
+      toast.error('Key and Value are required')
+      return
+    }
+    try {
+      const res = await fetch('/api/app-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: settingKey, value: settingValue }),
+      })
+      const data = await res.json()
+      if (data.success) { toast.success('Setting saved'); fetchSettings(); setSettingKey(''); setSettingValue('') }
+      else toast.error('Failed to save setting')
+    } catch { toast.error('Failed to save setting') }
+  }
+
+  async function handleDeleteSetting(id: string) {
+    try {
+      const res = await fetch(`/api/app-settings?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) { toast.success('Setting deleted'); fetchSettings() }
+      else toast.error('Failed to delete setting')
+    } catch { toast.error('Failed to delete setting') }
+  }
+
+  async function handleSendNotification() {
+    if (!notificationForm.message) {
+      toast.error('Message is required')
+      return
+    }
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notificationForm),
+      })
+      const data = await res.json()
+      if (data.success) { toast.success('Notification sent'); fetchNotifications(); setNotificationForm({ ...emptyNotificationForm }) }
+      else toast.error('Failed to send notification')
+    } catch { toast.error('Failed to send notification') }
+  }
+
+  async function handleDeleteNotification(id: string) {
+    try {
+      const res = await fetch(`/api/notifications?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) { toast.success('Notification deleted'); fetchNotifications() }
+      else toast.error('Failed to delete notification')
+    } catch { toast.error('Failed to delete notification') }
+  }
+
+  const filteredCustomers = useMemo(() => {
+    let list = [...customers]
+    if (customerSearch) {
+      const q = customerSearch.toLowerCase()
+      list = list.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q) || c.city.toLowerCase().includes(q) || c.email.toLowerCase().includes(q))
+    }
+    return list
+  }, [customers, customerSearch])
+
+  const filteredComplaints = useMemo(() => {
+    let list = [...complaints]
+    if (complaintSearch) {
+      const q = complaintSearch.toLowerCase()
+      list = list.filter(c => c.subject.toLowerCase().includes(q) || c.orderId.toLowerCase().includes(q) || c.description.toLowerCase().includes(q))
+    }
+    return list
+  }, [complaints, complaintSearch])
 
   /* ═══════════════════════════════════════════
      LANDING SCREEN
@@ -1819,6 +2082,290 @@ export default function Home() {
               )}
             </div>
           )}
+
+          {/* ── CUSTOMERS SECTION ── */}
+          {activeSection === 'customers' && (
+            <div className="animate-fade-in space-y-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-white">Customers</h1>
+                  <p className="text-sm text-neutral-500">Manage customer accounts and details</p>
+                </div>
+                <button
+                  onClick={() => setShowAddCustomer(true)}
+                  className="flex items-center gap-2 rounded-xl bg-[#f97316] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#f97316]/20 transition hover:bg-[#ea6c0b] active:scale-95"
+                >
+                  <Plus className="size-4" /> Add Customer
+                </button>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-500" />
+                <input
+                  type="text"
+                  placeholder="Search by name, phone, city, email..."
+                  value={customerSearch}
+                  onChange={e => setCustomerSearch(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-neutral-500 outline-none transition focus:border-[#f97316]/50 focus:ring-1 focus:ring-[#f97316]/25"
+                />
+              </div>
+              <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#1e1e30]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Name</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Phone</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Email</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">City</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Total Orders</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Total Spent</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Status</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredCustomers.length === 0 && (
+                      <tr><td colSpan={8} className="px-4 py-12 text-center text-neutral-500">No customers found</td></tr>
+                    )}
+                    {filteredCustomers.map(c => (
+                      <tr key={c.id} className="transition hover:bg-white/[0.02]">
+                        <td className="px-4 py-3 font-medium text-white">{c.name}</td>
+                        <td className="px-4 py-3 text-neutral-300">{c.phone}</td>
+                        <td className="px-4 py-3 text-neutral-400">{c.email || '-'}</td>
+                        <td className="px-4 py-3 text-neutral-300">{c.city || '-'}</td>
+                        <td className="px-4 py-3 text-neutral-300">{c.totalOrders}</td>
+                        <td className="px-4 py-3 font-bold text-[#f97316]">₹{c.totalSpent.toLocaleString()}</td>
+                        <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => handleDeleteCustomer(c.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                              <Trash2 className="size-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── COMPLAINTS SECTION ── */}
+          {activeSection === 'complaints' && (
+            <div className="animate-fade-in space-y-5">
+              <div>
+                <h1 className="text-2xl font-bold text-white">Complaints</h1>
+                <p className="text-sm text-neutral-500">Track and resolve customer complaints</p>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-500" />
+                <input
+                  type="text"
+                  placeholder="Search by order ID, subject, description..."
+                  value={complaintSearch}
+                  onChange={e => setComplaintSearch(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-neutral-500 outline-none transition focus:border-[#f97316]/50 focus:ring-1 focus:ring-[#f97316]/25"
+                />
+              </div>
+              <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#1e1e30]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Order ID</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Subject</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Description</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Status</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Date</th>
+                      <th className="sticky top-0 bg-[#1e1e30] px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredComplaints.length === 0 && (
+                      <tr><td colSpan={6} className="px-4 py-12 text-center text-neutral-500">No complaints found</td></tr>
+                    )}
+                    {filteredComplaints.map(c => (
+                      <tr key={c.id} className="transition hover:bg-white/[0.02]">
+                        <td className="px-4 py-3 font-bold text-[#f97316]">{c.orderId || '-'}</td>
+                        <td className="px-4 py-3 font-medium text-white">{c.subject}</td>
+                        <td className="px-4 py-3 text-neutral-400 max-w-[250px] truncate">{c.description}</td>
+                        <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+                        <td className="px-4 py-3 text-neutral-400">{c.createdAt}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => { setSelectedComplaint(c); setShowComplaintDetail(true) }} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-[#f97316]/10 hover:text-[#f97316]" title="View">
+                              <Eye className="size-4" />
+                            </button>
+                            <button onClick={() => handleDeleteComplaint(c.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                              <Trash2 className="size-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── SETTINGS SECTION ── */}
+          {activeSection === 'settings' && (
+            <div className="animate-fade-in space-y-5">
+              <div>
+                <h1 className="text-2xl font-bold text-white">Settings</h1>
+                <p className="text-sm text-neutral-500">Manage app configuration and settings</p>
+              </div>
+              {/* Add Setting Form */}
+              <div className="rounded-2xl border border-white/5 bg-[#1e1e30] p-5">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f97316] mb-4">
+                  <Plus className="size-4" /> Add / Update Setting
+                </h3>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="flex-1 space-y-1.5">
+                    <label className="text-xs font-medium text-neutral-400">Key</label>
+                    <input
+                      value={settingKey}
+                      onChange={e => setSettingKey(e.target.value)}
+                      placeholder="e.g., app_name, support_phone"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <label className="text-xs font-medium text-neutral-400">Value</label>
+                    <input
+                      value={settingValue}
+                      onChange={e => setSettingValue(e.target.value)}
+                      placeholder="e.g., StreetBite, +91-9876543210"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSaveSetting}
+                    className="flex items-center gap-2 rounded-xl bg-[#f97316] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6c0b] active:scale-95"
+                  >
+                    <Save className="size-4" /> Save
+                  </button>
+                </div>
+              </div>
+              {/* Settings List */}
+              <div className="space-y-3">
+                {appSettings.length === 0 && (
+                  <div className="rounded-2xl border border-white/5 bg-[#1e1e30] py-12 text-center text-neutral-500">
+                    No settings configured. Add your first setting above.
+                  </div>
+                )}
+                {appSettings.map(s => (
+                  <div key={s.id} className="rounded-2xl border border-white/5 bg-[#1e1e30] p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-9 items-center justify-center rounded-xl bg-[#f97316]/10">
+                          <SettingsIcon className="size-4 text-[#f97316]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-white">{s.key}</p>
+                          <p className="text-xs text-neutral-400">{s.value}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => handleDeleteSetting(s.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── NOTIFICATIONS SECTION ── */}
+          {activeSection === 'notifications' && (
+            <div className="animate-fade-in space-y-5">
+              <div>
+                <h1 className="text-2xl font-bold text-white">Notifications</h1>
+                <p className="text-sm text-neutral-500">Send push, email, and SMS notifications</p>
+              </div>
+              {/* Send Notification Form */}
+              <div className="rounded-2xl border border-white/5 bg-[#1e1e30] p-5">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f97316] mb-4">
+                  <Send className="size-4" /> Send Notification
+                </h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-neutral-400">Type *</label>
+                    <Select value={notificationForm.type} onValueChange={v => setNotificationForm(p => ({ ...p, type: v }))}>
+                      <SelectTrigger className="rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                        <SelectItem value="push">Push</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="sms">SMS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-neutral-400">Recipient (optional)</label>
+                    <input
+                      value={notificationForm.recipient}
+                      onChange={e => setNotificationForm(p => ({ ...p, recipient: e.target.value }))}
+                      placeholder="All users or specific user"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-neutral-400">Message *</label>
+                    <input
+                      value={notificationForm.message}
+                      onChange={e => setNotificationForm(p => ({ ...p, message: e.target.value }))}
+                      placeholder="Notification message..."
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <button
+                    onClick={handleSendNotification}
+                    className="flex items-center gap-2 rounded-xl bg-[#f97316] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6c0b] active:scale-95"
+                  >
+                    <Send className="size-4" /> Send
+                  </button>
+                </div>
+              </div>
+              {/* Notification History */}
+              <div>
+                <h3 className="text-sm font-semibold text-neutral-400 mb-3">Notification History</h3>
+                <div className="space-y-3">
+                  {notificationLogs.length === 0 && (
+                    <div className="rounded-2xl border border-white/5 bg-[#1e1e30] py-12 text-center text-neutral-500">
+                      No notifications sent yet
+                    </div>
+                  )}
+                  {notificationLogs.map(n => (
+                    <div key={n.id} className="rounded-2xl border border-white/5 bg-[#1e1e30] p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3">
+                          <div className={`flex size-9 items-center justify-center rounded-xl ${n.type === 'push' ? 'bg-blue-500/10' : n.type === 'email' ? 'bg-purple-500/10' : 'bg-green-500/10'}`}>
+                            {n.type === 'push' ? <Bell className="size-4 text-blue-400" /> : n.type === 'email' ? <Mail className="size-4 text-purple-400" /> : <MessageSquare className="size-4 text-green-400" />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium uppercase text-neutral-500">{n.type}</span>
+                              {n.recipient && <span className="text-xs text-neutral-600">to {n.recipient}</span>}
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${n.status === 'sent' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{n.status}</span>
+                            </div>
+                            <p className="mt-1 text-sm text-white">{n.message}</p>
+                            <p className="mt-0.5 text-xs text-neutral-500">{n.createdAt}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => handleDeleteNotification(n.id)} className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -2358,6 +2905,116 @@ export default function Home() {
                   Print Invoice
                 </button>
               </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════
+         ADD CUSTOMER MODAL
+         ═══════════════════════════════════════════ */}
+      <Dialog open={showAddCustomer} onOpenChange={setShowAddCustomer}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-white">Add New Customer</DialogTitle>
+            <DialogDescription className="text-neutral-400">Fill in the customer details below.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">Full Name *</label>
+                <input value={customerForm.name} onChange={e => setCustomerForm(p => ({ ...p, name: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">Phone *</label>
+                <input value={customerForm.phone} onChange={e => setCustomerForm(p => ({ ...p, phone: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">Email</label>
+                <input value={customerForm.email} onChange={e => setCustomerForm(p => ({ ...p, email: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">City</label>
+                <input value={customerForm.city} onChange={e => setCustomerForm(p => ({ ...p, city: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-medium text-neutral-400">Address</label>
+                <input value={customerForm.address} onChange={e => setCustomerForm(p => ({ ...p, address: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">State</label>
+                <input value={customerForm.state} onChange={e => setCustomerForm(p => ({ ...p, state: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-400">Pincode</label>
+                <input value={customerForm.pincode} onChange={e => setCustomerForm(p => ({ ...p, pincode: e.target.value }))} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f97316]/50" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <button onClick={() => { setShowAddCustomer(false); setCustomerForm({ ...emptyCustomerForm }) }} className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-neutral-400 transition hover:bg-white/5">
+              Cancel
+            </button>
+            <button onClick={handleAddCustomer} className="rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ea6c0b] active:scale-95">
+              Add Customer
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════
+         COMPLAINT DETAIL MODAL
+         ═══════════════════════════════════════════ */}
+      <Dialog open={showComplaintDetail} onOpenChange={setShowComplaintDetail}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto bg-[#1a1a2e] border-white/10 text-white sm:max-w-lg">
+          {selectedComplaint && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl text-white flex items-center gap-3">
+                  {selectedComplaint.subject}
+                  <StatusBadge status={selectedComplaint.status} />
+                </DialogTitle>
+                <DialogDescription className="text-neutral-400">Complaint details</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                {selectedComplaint.orderId && (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Order ID</p>
+                    <p className="mt-1 text-sm font-bold text-[#f97316]">{selectedComplaint.orderId}</p>
+                  </div>
+                )}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Description</p>
+                  <p className="mt-1 text-sm text-neutral-300">{selectedComplaint.description}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Date</p>
+                  <p className="mt-1 text-sm text-neutral-400">{selectedComplaint.createdAt}</p>
+                </div>
+              </div>
+              <div className="space-y-3 pt-2">
+                <p className="text-xs font-medium text-neutral-400">Update Status</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { if (selectedComplaint) handleUpdateComplaintStatus(selectedComplaint.id, 'in-progress') }}
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-95 ${selectedComplaint.status === 'in-progress' ? 'bg-yellow-500/20 border border-yellow-500/30 text-yellow-400' : 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/20'}`}
+                  >
+                    <Clock className="size-4" /> In Progress
+                  </button>
+                  <button
+                    onClick={() => { if (selectedComplaint) handleUpdateComplaintStatus(selectedComplaint.id, 'resolved') }}
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-95 ${selectedComplaint.status === 'resolved' ? 'bg-green-500/20 border border-green-500/30 text-green-400' : 'bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20'}`}
+                  >
+                    <CheckCircle2 className="size-4" /> Resolved
+                  </button>
+                  <button
+                    onClick={() => { if (selectedComplaint) handleUpdateComplaintStatus(selectedComplaint.id, 'closed') }}
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-95 ${selectedComplaint.status === 'closed' ? 'bg-neutral-500/20 border border-neutral-500/30 text-neutral-300' : 'bg-neutral-500/10 border border-neutral-500/20 text-neutral-300 hover:bg-neutral-500/20'}`}
+                  >
+                    <XCircle className="size-4" /> Closed
+                  </button>
+                </div>
+              </div>
             </>
           )}
         </DialogContent>
