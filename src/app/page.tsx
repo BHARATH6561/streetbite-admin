@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -61,6 +61,7 @@ import {
   Tag,
   FileText,
   Accessibility,
+  RefreshCw,
 } from 'lucide-react'
 
 /* ───────────── TYPES ───────────── */
@@ -71,7 +72,7 @@ type FoodType = 'VEG' | 'NONVEG'
 type MenuItemStatus = 'approved' | 'pending' | 'rejected'
 
 interface Vendor {
-  id: number
+  id: string
   hotel: string
   phone: string
   owner: string
@@ -102,7 +103,7 @@ interface Vendor {
 }
 
 interface Rider {
-  id: number
+  id: string
   name: string
   aadhaar: string
   aadhaarFile: string
@@ -149,47 +150,20 @@ interface Order {
 }
 
 interface MenuItem {
-  id: number
+  id: string
   name: string
   description: string
   category: string
   foodType: FoodType
   price: number
   photoUrl: string
-  vendorId: number
+  vendorId: string
   vendorName: string
   status: MenuItemStatus
   createdAt: string
 }
 
-/* ───────────── MOCK DATA ───────────── */
-const initialVendors: Vendor[] = [
-  { id: 1, hotel: 'Sharma Chaat Corner', phone: '9876543210', owner: 'Ramesh Sharma', aadhaar: '1234-5678-9012', aadhaarFile: 'Aadhaar.pdf', pan: 'ABCDE1234F', panFile: 'PAN.pdf', gst: '', gstFile: '', fssai: 'FSSAI12345', fssaiFile: 'FSSAI.pdf', address: 'MG Road, Indiranagar', city: 'Bangalore', state: 'Karnataka', pin: '560038', boardFile: 'Board.jpg', bankName: 'SBI', accType: 'Current', accNo: '123456789012', ifsc: 'SBIN0001234', branch: 'MG Road Branch', status: 'approved', rating: 4.8, totalOrders: 1560, cancelledHotelDelay: 12, totalRevenue: 125000, commission: 15 },
-  { id: 2, hotel: 'Mysore Dosa Palace', phone: '9876543211', owner: 'Arun Kumar', aadhaar: '2345-6789-0123', aadhaarFile: 'Aadhaar.pdf', pan: 'FGHIJ5678K', panFile: 'PAN.pdf', gst: 'GST98765', gstFile: 'GST.pdf', fssai: '', fssaiFile: '', address: 'Sayantha Nagar', city: 'Mysore', state: 'Karnataka', pin: '570001', boardFile: '', bankName: 'HDFC', accType: 'Savings', accNo: '987654321098', ifsc: 'HDFC0005678', branch: 'Mysore Main', status: 'pending', rating: 4.5, totalOrders: 800, cancelledHotelDelay: 5, totalRevenue: 450000, commission: 15 },
-  { id: 3, hotel: 'Mumbai Pav Bhaji Center', phone: '9876543212', owner: 'Raj Thakur', aadhaar: '3456-7890-1234', aadhaarFile: 'Aadhaar.pdf', pan: 'KLMNO9012P', panFile: 'PAN.pdf', gst: '', gstFile: '', fssai: '', fssaiFile: '', address: 'Juhu Beach', city: 'Mumbai', state: 'Maharashtra', pin: '400049', boardFile: '', bankName: 'ICICI', accType: 'Current', accNo: '112233445566', ifsc: 'ICIC0001122', branch: 'Juhu Branch', status: 'rejected', rating: 3.2, totalOrders: 120, cancelledHotelDelay: 45, totalRevenue: 35000, commission: 15 },
-]
-
-const initialRiders: Rider[] = [
-  { id: 1, name: 'Raju Singh', aadhaar: '3456-7890-1234', aadhaarFile: 'Aadhaar.pdf', pan: 'PQRST1234U', panFile: 'PAN.pdf', photoFile: 'Photo.jpg', vehicle: 'KA-01-AB-1234', vehicleFile: 'Vehicle.jpg', rcFile: 'RC.pdf', dl: 'DL12345', dlFile: 'DL.pdf', city: 'Bangalore', state: 'Karnataka', pincode: '560001', bankName: 'Kotak', accNo: '445566778899', ifsc: 'KKBK0001234', branch: 'Koramangala', status: 'approved', rating: 4.7, totalDeliveries: 920, cancelledDelay: 8, totalEarnings: 18500, deliveryFee: 30, handicap: 'NO' },
-  { id: 2, name: 'Manoj Kumar', aadhaar: '4567-8901-2345', aadhaarFile: 'Aadhaar.pdf', pan: 'VWXYZ5678A', panFile: 'PAN.pdf', photoFile: 'Photo.jpg', vehicle: 'KA-01-CD-5678', vehicleFile: 'Vehicle.jpg', rcFile: 'RC.pdf', dl: 'DL67890', dlFile: 'DL.pdf', city: 'Bangalore', state: 'Karnataka', pincode: '560002', bankName: 'Axis', accNo: '998877665544', ifsc: 'UTIB0001234', branch: 'Whitefield', status: 'pending', rating: 0, totalDeliveries: 0, cancelledDelay: 0, totalEarnings: 0, deliveryFee: 30, handicap: 'YES' },
-  { id: 3, name: 'Suresh Yadav', aadhaar: '5678-9012-3456', aadhaarFile: 'Aadhaar.pdf', pan: 'ABCDE9876B', panFile: 'PAN.pdf', photoFile: 'Photo.jpg', vehicle: 'KA-02-EF-9012', vehicleFile: 'Vehicle.jpg', rcFile: 'RC.pdf', dl: 'MH54321', dlFile: 'DL.pdf', city: 'Hubli', state: 'Karnataka', pincode: '580001', bankName: 'SBI', accNo: '556677889900', ifsc: 'SBIN0009876', branch: 'Hubli Main', status: 'approved', rating: 4.2, totalDeliveries: 450, cancelledDelay: 15, totalEarnings: 9500, deliveryFee: 30, handicap: 'NO' },
-]
-
-const initialMenuItems: MenuItem[] = [
-  { id: 1, name: 'Butter Masala Dosa', description: 'Crispy dosa filled with buttery masala, served with coconut chutney and sambar', category: 'South Indian', foodType: 'VEG', price: 120, photoUrl: '/food/dosa.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'approved', createdAt: '2025-01-15' },
-  { id: 2, name: 'Chicken Biryani', description: 'Aromatic basmati rice cooked with tender chicken pieces, spices and saffron', category: 'Biryani', foodType: 'NONVEG', price: 250, photoUrl: '/food/biryani.jpg', vendorId: 1, vendorName: 'Sharma Chaat Corner', status: 'approved', createdAt: '2025-01-18' },
-  { id: 3, name: 'Pav Bhaji', description: 'Spiced mashed vegetables served with buttered pav buns', category: 'Street Food', foodType: 'VEG', price: 140, photoUrl: '/food/pavbhaji.jpg', vendorId: 3, vendorName: 'Mumbai Pav Bhaji Center', status: 'pending', createdAt: '2025-02-01' },
-  { id: 4, name: 'Paneer Tikka', description: 'Marinated cottage cheese cubes grilled in tandoor with bell peppers', category: 'Starters', foodType: 'VEG', price: 180, photoUrl: '/food/paneertikka.jpg', vendorId: 1, vendorName: 'Sharma Chaat Corner', status: 'approved', createdAt: '2025-02-05' },
-  { id: 5, name: 'Mutton Rogan Josh', description: 'Slow-cooked mutton in rich Kashmiri spices and yogurt gravy', category: 'Main Course', foodType: 'NONVEG', price: 350, photoUrl: '/food/roganjosh.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'pending', createdAt: '2025-02-10' },
-  { id: 6, name: 'Vada Pav', description: 'Mumbai-style spiced potato fritter in a bun with chutneys', category: 'Street Food', foodType: 'VEG', price: 40, photoUrl: '/food/vadapav.jpg', vendorId: 3, vendorName: 'Mumbai Pav Bhaji Center', status: 'approved', createdAt: '2025-02-12' },
-  { id: 7, name: 'Chole Bhature', description: 'Spicy chickpea curry served with deep-fried bread', category: 'North Indian', foodType: 'VEG', price: 130, photoUrl: '/food/chole.jpg', vendorId: 1, vendorName: 'Sharma Chaat Corner', status: 'rejected', createdAt: '2025-02-15' },
-  { id: 8, name: 'Fish Curry', description: 'Fresh fish cooked in tangy coconut and tamarind gravy', category: 'Main Course', foodType: 'NONVEG', price: 280, photoUrl: '/food/fishcurry.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'pending', createdAt: '2025-02-20' },
-  { id: 9, name: 'Filter Coffee', description: 'Authentic South Indian filter coffee with frothed milk', category: 'Beverages', foodType: 'VEG', price: 50, photoUrl: '/food/coffee.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'approved', createdAt: '2025-02-22' },
-  { id: 10, name: 'Prawn Fry', description: 'Crispy fried prawns with spices and curry leaves', category: 'Starters', foodType: 'NONVEG', price: 320, photoUrl: '', vendorId: 3, vendorName: 'Mumbai Pav Bhaji Center', status: 'pending', createdAt: '2025-03-01' },
-  { id: 11, name: 'Masala Dosa', description: 'Thin crispy crepe made from rice batter with spiced potato filling', category: 'South Indian', foodType: 'VEG', price: 90, photoUrl: '/food/masaladosa.jpg', vendorId: 2, vendorName: 'Mysore Dosa Palace', status: 'approved', createdAt: '2025-03-05' },
-  { id: 12, name: 'Egg Fried Rice', description: 'Stir-fried rice with scrambled eggs and vegetables', category: 'Chinese', foodType: 'NONVEG', price: 160, photoUrl: '', vendorId: 1, vendorName: 'Sharma Chaat Corner', status: 'pending', createdAt: '2025-03-08' },
-]
-
+/* ───────────── FOOD TYPE HELPERS ───────────── */
 const foodItemMap: Record<string, FoodType> = {
   'Butter Masala Dosa': 'VEG',
   'Filter Coffee': 'VEG',
@@ -242,79 +216,6 @@ function getFoodType(itemName: string): FoodType {
     if (name.includes(key.toLowerCase())) return val
   }
   return 'VEG'
-}
-
-function generateOrders(): Order[] {
-  const customerNames = ['Priya M.', 'Arjun K.', 'Neha S.', 'Vikram R.', 'Sneha P.', 'Rahul D.', 'Anita G.', 'Suresh B.', 'Kavita T.', 'Deepak N.']
-  const cancelledByOptions = ['Customer', 'Hotel', 'Rider']
-  const foodItems = [
-    'Butter Masala Dosa, Filter Coffee',
-    'Pav Bhaji, Lassi',
-    'Chole Bhature, Sweet Lassi',
-    'Paneer Tikka, Naan, Raita',
-    'Vada Pav, Cutting Chai',
-    'Masala Dosa, Sambar, Idli',
-    'Chicken Biryani, Raita',
-    'Mutton Rogan Josh, Jeera Rice',
-    'Aloo Paratha, Curd, Pickle',
-    'Rajma Chawal, Salad',
-    'Pani Puri, Sev Puri, Dahi Puri',
-    'Samosa, Bread Pakora, Chai',
-    'Veg Thali',
-    'Non-Veg Thali',
-    'Egg Fried Rice, Gobi Manchurian',
-    'Mushroom Do Pyaza, Roti',
-    'Fish Curry, Steamed Rice',
-    'Prawn Fry, Appam',
-    'Dal Makhani, Jeera Rice, Naan',
-    'Kadai Paneer, Butter Naan',
-  ]
-  const orders: Order[] = []
-
-  for (let i = 1; i <= 35; i++) {
-    const statusIdx = Math.random()
-    let status: OrderStatus = 'completed'
-    if (statusIdx < 0.3) status = 'live'
-    else if (statusIdx < 0.8) status = 'completed'
-    else status = 'cancelled'
-
-    const isDelayed = status === 'live' && Math.random() > 0.6
-    const cancelledBy = status === 'cancelled' ? cancelledByOptions[Math.floor(Math.random() * 3)] : ''
-    const day = Math.floor(Math.random() * 28) + 1
-    const month = Math.floor(Math.random() * 3) + 1
-    const hour = Math.floor(Math.random() * 12) + 7
-    const minute = Math.floor(Math.random() * 60)
-    const ampm = hour < 12 ? 'AM' : 'PM'
-    const displayHour = hour > 12 ? hour - 12 : hour
-    const amount = Math.floor(Math.random() * 800) + 100
-
-    const vendorIdx = Math.floor(Math.random() * initialVendors.length)
-    const riderIdx = Math.floor(Math.random() * initialRiders.length)
-    const vendor = initialVendors[vendorIdx]
-    const rider = initialRiders[riderIdx]
-    const itemStr = foodItems[Math.floor(Math.random() * foodItems.length)]
-    const itemParts = itemStr.split(', ').map(s => s.trim())
-    const itemFoodTypes = itemParts.map(item => getFoodType(item))
-
-    orders.push({
-      id: `ORD-${String(1000 + i).padStart(4, '0')}`,
-      status,
-      delayed: isDelayed,
-      cancelledBy,
-      customer: customerNames[Math.floor(Math.random() * customerNames.length)],
-      vendor: vendor.hotel,
-      vendorOwner: vendor.owner,
-      vendorPhone: vendor.phone,
-      rider: rider.name,
-      riderPhone: `+91-${rider.aadhaar.slice(-4)}${String(rider.id).padStart(6, '0')}`,
-      items: itemStr,
-      itemsFoodType: itemFoodTypes,
-      orderTime: `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${ampm}`,
-      orderDate: `2025-0${month}-${String(day).padStart(2, '0')}`,
-      amount,
-    })
-  }
-  return orders
 }
 
 /* ───────────── FORM DEFAULTS ───────────── */
@@ -448,11 +349,12 @@ export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [activeSection, setActiveSection] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const [vendors, setVendors] = useState<Vendor[]>(initialVendors)
-  const [riders, setRiders] = useState<Rider[]>(initialRiders)
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(initialMenuItems)
-  const [orders] = useState<Order[]>(generateOrders)
+  const [vendors, setVendors] = useState<Vendor[]>([])
+  const [riders, setRiders] = useState<Rider[]>([])
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
 
   const [vendorSearch, setVendorSearch] = useState('')
   const [vendorSort, setVendorSort] = useState('name-asc')
@@ -482,6 +384,167 @@ export default function Home() {
   const [vendorForm, setVendorForm] = useState({ ...emptyVendorForm })
   const [riderForm, setRiderForm] = useState({ ...emptyRiderForm })
   const [menuItemForm, setMenuItemForm] = useState({ ...emptyMenuItemForm })
+
+  /* ── API Data Fetching ── */
+  const fetchVendors = useCallback(async () => {
+    try {
+      const res = await fetch('/api/vendors')
+      const data = await res.json()
+      if (data.success && data.vendors) {
+        setVendors(data.vendors.map((v: Record<string, unknown>) => ({
+          ...v,
+          aadhaar: v.aadhaar || '',
+          aadhaarFile: v.aadhaarFile || '',
+          pan: v.pan || '',
+          panFile: v.panFile || '',
+          gst: v.gst || '',
+          gstFile: v.gstFile || '',
+          fssai: v.fssai || '',
+          fssaiFile: v.fssaiFile || '',
+          address: v.address || '',
+          city: v.city || '',
+          state: v.state || '',
+          pin: v.pin || '',
+          boardFile: v.boardFile || '',
+          bankName: v.bankName || '',
+          accType: v.accType || '',
+          accNo: v.accNo || '',
+          ifsc: v.ifsc || '',
+          branch: v.branch || '',
+          status: (v.status as VendorStatus) || 'pending',
+          rating: Number(v.rating) || 0,
+          totalOrders: Number(v.totalOrders) || 0,
+          cancelledHotelDelay: Number(v.cancelledHotelDelay) || 0,
+          totalRevenue: Number(v.totalRevenue) || 0,
+          commission: Number(v.commission) || 15,
+        })))
+      }
+    } catch { /* ignore fetch errors */ }
+  }, [])
+
+  const fetchRiders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/riders')
+      const data = await res.json()
+      if (data.success && data.riders) {
+        setRiders(data.riders.map((r: Record<string, unknown>) => ({
+          ...r,
+          aadhaar: r.aadhaar || '',
+          aadhaarFile: r.aadhaarFile || '',
+          pan: r.pan || '',
+          panFile: r.panFile || '',
+          photoFile: r.photoFile || '',
+          vehicle: r.vehicle || '',
+          vehicleFile: r.vehicleFile || '',
+          rcFile: r.rcFile || '',
+          dl: r.dl || '',
+          dlFile: r.dlFile || '',
+          city: r.city || '',
+          state: r.state || '',
+          pincode: r.pincode || '',
+          bankName: r.bankName || '',
+          accNo: r.accNo || '',
+          ifsc: r.ifsc || '',
+          branch: r.branch || '',
+          status: (r.status as RiderStatus) || 'pending',
+          rating: Number(r.rating) || 0,
+          totalDeliveries: Number(r.totalDeliveries) || 0,
+          cancelledDelay: Number(r.cancelledDelay) || 0,
+          totalEarnings: Number(r.totalEarnings) || 0,
+          deliveryFee: Number(r.deliveryFee) || 30,
+          handicap: (r.handicap as 'YES' | 'NO') || 'NO',
+        })))
+      }
+    } catch { /* ignore fetch errors */ }
+  }, [])
+
+  const fetchMenuItems = useCallback(async () => {
+    try {
+      const res = await fetch('/api/menu-items')
+      const data = await res.json()
+      if (data.success && data.menuItems) {
+        setMenuItems(data.menuItems.map((m: Record<string, unknown>) => ({
+          ...m,
+          description: m.description || '',
+          category: m.category || '',
+          foodType: (m.foodType as FoodType) || 'VEG',
+          price: Number(m.price) || 0,
+          photoUrl: m.photoUrl || '',
+          vendorId: m.vendorId || '',
+          vendorName: m.vendorName || '',
+          status: (m.status as MenuItemStatus) || 'pending',
+          createdAt: m.createdAt ? new Date(m.createdAt as string).toISOString().split('T')[0] : '',
+        })))
+      }
+    } catch { /* ignore fetch errors */ }
+  }, [])
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/orders')
+      const data = await res.json()
+      if (data.success && data.orders) {
+        setOrders(data.orders.map((o: Record<string, unknown>) => {
+          let foodTypes: FoodType[] = []
+          try {
+            if (o.itemsFoodType) {
+              foodTypes = JSON.parse(o.itemsFoodType as string)
+            }
+          } catch { /* ignore parse error */ }
+          return {
+            id: o.id || '',
+            status: (o.status as OrderStatus) || 'completed',
+            delayed: Boolean(o.delayed),
+            cancelledBy: (o.cancelledBy as string) || '',
+            customer: (o.customerName as string) || '',
+            vendor: (o.vendorName as string) || '',
+            vendorOwner: (o.vendorOwner as string) || '',
+            vendorPhone: (o.vendorPhone as string) || '',
+            rider: (o.riderName as string) || '',
+            riderPhone: (o.riderPhone as string) || '',
+            items: (o.items as string) || '',
+            itemsFoodType: foodTypes,
+            orderTime: (o.orderTime as string) || '',
+            orderDate: (o.orderDate as string) || '',
+            amount: Number(o.amount) || 0,
+          }
+        }))
+      }
+    } catch { /* ignore fetch errors */ }
+  }, [])
+
+  const fetchAllData = useCallback(async () => {
+    setLoading(true)
+    await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders()])
+    setLoading(false)
+  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders])
+
+  /* ── Initial load & auto-refresh every 30s ── */
+  useEffect(() => {
+    if (!isLoggedIn) return
+    const loadData = async () => {
+      setLoading(true)
+      await Promise.all([fetchVendors(), fetchRiders(), fetchMenuItems(), fetchOrders()])
+      setLoading(false)
+    }
+    loadData()
+    const interval = setInterval(() => {
+      loadData()
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [isLoggedIn, fetchVendors, fetchRiders, fetchMenuItems, fetchOrders])
+
+  /* ── Auto-refresh on navigation ── */
+  const handleNavClick = useCallback((key: string) => {
+    setActiveSection(key)
+    setSidebarOpen(false)
+    // Fetch latest data when navigating to a section
+    if (key === 'vendors') fetchVendors()
+    else if (key === 'riders') fetchRiders()
+    else if (key === 'menuItems') fetchMenuItems()
+    else if (key === 'orders') fetchOrders()
+    else if (key === 'dashboard') fetchAllData()
+  }, [fetchVendors, fetchRiders, fetchMenuItems, fetchOrders, fetchAllData])
 
   /* ── Computed ── */
   const filteredVendors = useMemo(() => {
@@ -577,6 +640,8 @@ export default function Home() {
   }, [orders, orderTab, orderSearch, orderSort])
 
   /* ── Dashboard stats ── */
+  const pendingVendors = vendors.filter(v => v.status === 'pending').length
+  const pendingRiders = riders.filter(r => r.status === 'pending').length
   const pendingMenuItems = menuItems.filter(m => m.status === 'pending').length
   const stats = useMemo(() => [
     { label: 'Hotels Tie-up', count: vendors.length, icon: Store, color: 'text-[#f97316]', bg: 'bg-[#f97316]/10' },
@@ -587,177 +652,352 @@ export default function Home() {
     { label: 'Pending Food Approvals', count: pendingMenuItems, icon: AlertTriangle, color: 'text-purple-400', bg: 'bg-purple-400/10' },
   ], [vendors, riders, menuItems, orders, pendingMenuItems])
 
+  /* ── Sidebar pending badges ── */
+  const sidebarBadges = useMemo(() => ({
+    vendors: pendingVendors,
+    riders: pendingRiders,
+    menuItems: pendingMenuItems,
+  }), [pendingVendors, pendingRiders, pendingMenuItems])
+
   /* ── Handlers ── */
-  function handleDeleteVendor(id: number) {
-    setVendors(prev => prev.filter(v => v.id !== id))
-    toast.success('Vendor deleted successfully')
-  }
-
-  function handleDeleteRider(id: number) {
-    setRiders(prev => prev.filter(r => r.id !== id))
-    toast.success('Delivery partner deleted successfully')
-  }
-
-  function handleDeleteMenuItem(id: number) {
-    setMenuItems(prev => prev.filter(m => m.id !== id))
-    toast.success('Food item deleted successfully')
-  }
-
-  function handleApprove(id: number, type: 'vendor' | 'rider') {
-    if (type === 'vendor') {
-      setVendors(prev => prev.map(v => v.id === id ? { ...v, status: 'approved' as VendorStatus } : v))
-    } else {
-      setRiders(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' as RiderStatus } : r))
+  async function handleDeleteVendor(id: string) {
+    try {
+      const res = await fetch(`/api/vendors?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Vendor deleted successfully')
+        fetchVendors()
+      } else {
+        toast.error('Failed to delete vendor')
+      }
+    } catch {
+      toast.error('Failed to delete vendor')
     }
-    toast.success(`${type === 'vendor' ? 'Vendor' : 'Delivery partner'} approved successfully`)
+  }
+
+  async function handleDeleteRider(id: string) {
+    try {
+      const res = await fetch(`/api/riders?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Delivery partner deleted successfully')
+        fetchRiders()
+      } else {
+        toast.error('Failed to delete delivery partner')
+      }
+    } catch {
+      toast.error('Failed to delete delivery partner')
+    }
+  }
+
+  async function handleDeleteMenuItem(id: string) {
+    try {
+      const res = await fetch(`/api/menu-items?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Food item deleted successfully')
+        fetchMenuItems()
+      } else {
+        toast.error('Failed to delete food item')
+      }
+    } catch {
+      toast.error('Failed to delete food item')
+    }
+  }
+
+  async function handleApprove(id: string, type: 'vendor' | 'rider') {
+    try {
+      const endpoint = type === 'vendor' ? '/api/vendors' : '/api/riders'
+      const res = await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'approved' }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`${type === 'vendor' ? 'Vendor' : 'Delivery partner'} approved successfully`)
+        if (type === 'vendor') fetchVendors()
+        else fetchRiders()
+      } else {
+        toast.error('Failed to approve')
+      }
+    } catch {
+      toast.error('Failed to approve')
+    }
     setShowDetailModal(false)
   }
 
-  function handleReject(id: number, type: 'vendor' | 'rider') {
-    if (type === 'vendor') {
-      setVendors(prev => prev.map(v => v.id === id ? { ...v, status: 'rejected' as VendorStatus } : v))
-    } else {
-      setRiders(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' as RiderStatus } : r))
+  async function handleReject(id: string, type: 'vendor' | 'rider') {
+    try {
+      const endpoint = type === 'vendor' ? '/api/vendors' : '/api/riders'
+      const res = await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'rejected' }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`${type === 'vendor' ? 'Vendor' : 'Delivery partner'} rejected`)
+        if (type === 'vendor') fetchVendors()
+        else fetchRiders()
+      } else {
+        toast.error('Failed to reject')
+      }
+    } catch {
+      toast.error('Failed to reject')
     }
-    toast.success(`${type === 'vendor' ? 'Vendor' : 'Delivery partner'} rejected`)
     setShowDetailModal(false)
   }
 
-  function handleApproveMenuItem(id: number) {
-    setMenuItems(prev => prev.map(m => m.id === id ? { ...m, status: 'approved' as MenuItemStatus } : m))
-    toast.success('Food item approved')
+  async function handleApproveMenuItem(id: string) {
+    try {
+      const res = await fetch('/api/menu-items', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'approved' }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Food item approved')
+        fetchMenuItems()
+      } else {
+        toast.error('Failed to approve food item')
+      }
+    } catch {
+      toast.error('Failed to approve food item')
+    }
   }
 
-  function handleRejectMenuItem(id: number) {
-    setMenuItems(prev => prev.map(m => m.id === id ? { ...m, status: 'rejected' as MenuItemStatus } : m))
-    toast.success('Food item rejected')
+  async function handleRejectMenuItem(id: string) {
+    try {
+      const res = await fetch('/api/menu-items', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'rejected' }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Food item rejected')
+        fetchMenuItems()
+      } else {
+        toast.error('Failed to reject food item')
+      }
+    } catch {
+      toast.error('Failed to reject food item')
+    }
   }
 
-  function handleAddVendor() {
+  async function handleAddVendor() {
     if (!vendorForm.hotel || !vendorForm.phone || !vendorForm.owner || !vendorForm.aadhaar || !vendorForm.pan || !vendorForm.address || !vendorForm.city || !vendorForm.state || !vendorForm.pin || !vendorForm.bankName || !vendorForm.accNo || !vendorForm.ifsc || !vendorForm.branch) {
       toast.error('Please fill in all required fields')
       return
     }
-    const newVendor: Vendor = {
-      id: Date.now(),
-      hotel: vendorForm.hotel,
-      phone: vendorForm.phone,
-      owner: vendorForm.owner,
-      aadhaar: vendorForm.aadhaar,
-      aadhaarFile: vendorForm.aadhaarFile || 'Aadhaar.pdf',
-      pan: vendorForm.pan,
-      panFile: vendorForm.panFile || 'PAN.pdf',
-      gst: vendorForm.gst,
-      gstFile: vendorForm.gstFile,
-      fssai: vendorForm.fssai,
-      fssaiFile: vendorForm.fssaiFile,
-      address: vendorForm.address,
-      city: vendorForm.city,
-      state: vendorForm.state,
-      pin: vendorForm.pin,
-      boardFile: vendorForm.boardFile,
-      bankName: vendorForm.bankName,
-      accType: vendorForm.accType,
-      accNo: vendorForm.accNo,
-      ifsc: vendorForm.ifsc,
-      branch: vendorForm.branch,
-      status: 'pending',
-      rating: 0,
-      totalOrders: 0,
-      cancelledHotelDelay: 0,
-      totalRevenue: 0,
-      commission: parseFloat(globalCommission) || 15,
+    try {
+      const res = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotel: vendorForm.hotel,
+          phone: vendorForm.phone,
+          owner: vendorForm.owner,
+          aadhaar: vendorForm.aadhaar,
+          aadhaarFile: vendorForm.aadhaarFile || 'Aadhaar.pdf',
+          pan: vendorForm.pan,
+          panFile: vendorForm.panFile || 'PAN.pdf',
+          gst: vendorForm.gst,
+          gstFile: vendorForm.gstFile,
+          fssai: vendorForm.fssai,
+          fssaiFile: vendorForm.fssaiFile,
+          address: vendorForm.address,
+          city: vendorForm.city,
+          state: vendorForm.state,
+          pin: vendorForm.pin,
+          boardFile: vendorForm.boardFile,
+          bankName: vendorForm.bankName,
+          accType: vendorForm.accType,
+          accNo: vendorForm.accNo,
+          ifsc: vendorForm.ifsc,
+          branch: vendorForm.branch,
+          status: 'pending',
+          rating: 0,
+          totalOrders: 0,
+          cancelledHotelDelay: 0,
+          totalRevenue: 0,
+          commission: parseFloat(globalCommission) || 15,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Vendor added successfully')
+        fetchVendors()
+      } else {
+        toast.error('Failed to add vendor')
+      }
+    } catch {
+      toast.error('Failed to add vendor')
     }
-    setVendors(prev => [...prev, newVendor])
     setShowAddVendor(false)
     setVendorForm({ ...emptyVendorForm })
-    toast.success('Vendor added successfully')
   }
 
-  function handleAddRider() {
+  async function handleAddRider() {
     if (!riderForm.name || !riderForm.aadhaar || !riderForm.pan || !riderForm.vehicle || !riderForm.dl || !riderForm.city || !riderForm.state || !riderForm.pincode || !riderForm.bankName || !riderForm.accNo || !riderForm.ifsc || !riderForm.branch) {
       toast.error('Please fill in all required fields')
       return
     }
-    const newRider: Rider = {
-      id: Date.now(),
-      name: riderForm.name,
-      aadhaar: riderForm.aadhaar,
-      aadhaarFile: riderForm.aadhaarFile || 'Aadhaar.pdf',
-      pan: riderForm.pan,
-      panFile: riderForm.panFile || 'PAN.pdf',
-      photoFile: riderForm.photoFile || 'Photo.jpg',
-      vehicle: riderForm.vehicle,
-      vehicleFile: riderForm.vehicleFile || 'Vehicle.jpg',
-      rcFile: riderForm.rcFile || 'RC.pdf',
-      dl: riderForm.dl,
-      dlFile: riderForm.dlFile || 'DL.pdf',
-      city: riderForm.city,
-      state: riderForm.state,
-      pincode: riderForm.pincode,
-      bankName: riderForm.bankName,
-      accNo: riderForm.accNo,
-      ifsc: riderForm.ifsc,
-      branch: riderForm.branch,
-      status: 'pending',
-      rating: 0,
-      totalDeliveries: 0,
-      cancelledDelay: 0,
-      totalEarnings: 0,
-      deliveryFee: parseFloat(globalDeliveryFee) || 30,
-      handicap: riderForm.handicap,
+    try {
+      const res = await fetch('/api/riders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: riderForm.name,
+          aadhaar: riderForm.aadhaar,
+          aadhaarFile: riderForm.aadhaarFile || 'Aadhaar.pdf',
+          pan: riderForm.pan,
+          panFile: riderForm.panFile || 'PAN.pdf',
+          photoFile: riderForm.photoFile || 'Photo.jpg',
+          vehicle: riderForm.vehicle,
+          vehicleFile: riderForm.vehicleFile || 'Vehicle.jpg',
+          rcFile: riderForm.rcFile || 'RC.pdf',
+          dl: riderForm.dl,
+          dlFile: riderForm.dlFile || 'DL.pdf',
+          city: riderForm.city,
+          state: riderForm.state,
+          pincode: riderForm.pincode,
+          bankName: riderForm.bankName,
+          accNo: riderForm.accNo,
+          ifsc: riderForm.ifsc,
+          branch: riderForm.branch,
+          status: 'pending',
+          rating: 0,
+          totalDeliveries: 0,
+          cancelledDelay: 0,
+          totalEarnings: 0,
+          deliveryFee: parseFloat(globalDeliveryFee) || 30,
+          handicap: riderForm.handicap,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Delivery partner added successfully')
+        fetchRiders()
+      } else {
+        toast.error('Failed to add delivery partner')
+      }
+    } catch {
+      toast.error('Failed to add delivery partner')
     }
-    setRiders(prev => [...prev, newRider])
     setShowAddRider(false)
     setRiderForm({ ...emptyRiderForm })
-    toast.success('Delivery partner added successfully')
   }
 
-  function handleAddMenuItem() {
+  async function handleAddMenuItem() {
     if (!menuItemForm.name || !menuItemForm.category || !menuItemForm.price || !menuItemForm.vendorId) {
       toast.error('Please fill in all required fields')
       return
     }
-    const vendor = vendors.find(v => v.id === Number(menuItemForm.vendorId))
-    const newItem: MenuItem = {
-      id: Date.now(),
-      name: menuItemForm.name,
-      description: menuItemForm.description,
-      category: menuItemForm.category,
-      foodType: menuItemForm.foodType,
-      price: parseFloat(menuItemForm.price) || 0,
-      photoUrl: menuItemForm.photoUrl,
-      vendorId: Number(menuItemForm.vendorId),
-      vendorName: vendor?.hotel || menuItemForm.vendorName || 'Unknown',
-      status: 'pending',
-      createdAt: new Date().toISOString().split('T')[0],
+    const vendor = vendors.find(v => v.id === menuItemForm.vendorId)
+    try {
+      const res = await fetch('/api/menu-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: menuItemForm.name,
+          description: menuItemForm.description,
+          category: menuItemForm.category,
+          foodType: menuItemForm.foodType,
+          price: parseFloat(menuItemForm.price) || 0,
+          photoUrl: menuItemForm.photoUrl,
+          vendorId: menuItemForm.vendorId,
+          vendorName: vendor?.hotel || menuItemForm.vendorName || 'Unknown',
+          status: 'pending',
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Food item added successfully')
+        fetchMenuItems()
+      } else {
+        toast.error('Failed to add food item')
+      }
+    } catch {
+      toast.error('Failed to add food item')
     }
-    setMenuItems(prev => [...prev, newItem])
     setShowAddMenuItem(false)
     setMenuItemForm({ ...emptyMenuItemForm })
-    toast.success('Food item added successfully')
   }
 
-  function handlePayVendor(id: number) {
-    setVendors(prev => prev.map(v => v.id === id ? { ...v, totalRevenue: 0 } : v))
-    toast.success('Payment processed successfully')
+  async function handlePayVendor(id: string) {
+    try {
+      const res = await fetch('/api/vendors', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, totalRevenue: 0 }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Payment processed successfully')
+        fetchVendors()
+      } else {
+        toast.error('Failed to process payment')
+      }
+    } catch {
+      toast.error('Failed to process payment')
+    }
   }
 
-  function handlePayRider(id: number) {
-    setRiders(prev => prev.map(r => r.id === id ? { ...r, totalEarnings: 0 } : r))
-    toast.success('Payment processed successfully')
+  async function handlePayRider(id: string) {
+    try {
+      const res = await fetch('/api/riders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, totalEarnings: 0 }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Payment processed successfully')
+        fetchRiders()
+      } else {
+        toast.error('Failed to process payment')
+      }
+    } catch {
+      toast.error('Failed to process payment')
+    }
   }
 
-  function handleApplyCommission() {
+  async function handleApplyCommission() {
     const c = parseFloat(globalCommission) || 0
-    setVendors(prev => prev.map(v => ({ ...v, commission: c })))
-    toast.success(`Commission set to ${c}% for all vendors`)
+    try {
+      // Update all vendors with the new commission
+      await Promise.all(vendors.map(v =>
+        fetch('/api/vendors', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: v.id, commission: c }),
+        })
+      ))
+      toast.success(`Commission set to ${c}% for all vendors`)
+      fetchVendors()
+    } catch {
+      toast.error('Failed to apply commission')
+    }
   }
 
-  function handleApplyDeliveryFee() {
+  async function handleApplyDeliveryFee() {
     const f = parseFloat(globalDeliveryFee) || 0
-    setRiders(prev => prev.map(r => ({ ...r, deliveryFee: f })))
-    toast.success(`Delivery fee set to ₹${f} for all riders`)
+    try {
+      await Promise.all(riders.map(r =>
+        fetch('/api/riders', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: r.id, deliveryFee: f }),
+        })
+      ))
+      toast.success(`Delivery fee set to ₹${f} for all riders`)
+      fetchRiders()
+    } catch {
+      toast.error('Failed to apply delivery fee')
+    }
   }
 
   function openDetail(item: Vendor | Rider, type: 'vendor' | 'rider') {
@@ -858,11 +1098,11 @@ export default function Home() {
           {navItems.map(item => {
             const Icon = item.icon
             const active = activeSection === item.key
-            const pendingBadge = item.key === 'menuItems' ? pendingMenuItems : 0
+            const pendingBadge = sidebarBadges[item.key as keyof typeof sidebarBadges] || 0
             return (
               <button
                 key={item.key}
-                onClick={() => { setActiveSection(item.key); setSidebarOpen(false) }}
+                onClick={() => handleNavClick(item.key)}
                 className={`flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                   active
                     ? 'bg-[#f97316]/10 text-[#f97316]'
@@ -903,6 +1143,13 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => fetchAllData()}
+              className="rounded-lg p-2 text-neutral-400 hover:bg-white/5 hover:text-[#f97316] transition"
+              title="Refresh data"
+            >
+              <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
             <div className="flex size-9 items-center justify-center rounded-full bg-[#f97316]/15">
               <User className="size-4 text-[#f97316]" />
             </div>
@@ -910,6 +1157,14 @@ export default function Home() {
         </header>
 
         <div className="p-4 md:p-6">
+          {/* ── LOADING INDICATOR ── */}
+          {loading && (
+            <div className="mb-4 flex items-center gap-2 rounded-xl bg-[#f97316]/10 border border-[#f97316]/20 px-4 py-2 text-sm text-[#f97316]">
+              <RefreshCw className="size-4 animate-spin" />
+              Refreshing data...
+            </div>
+          )}
+
           {/* ── DASHBOARD SECTION ── */}
           {activeSection === 'dashboard' && (
             <div className="animate-fade-in space-y-6">
@@ -935,6 +1190,32 @@ export default function Home() {
                   )
                 })}
               </div>
+              {/* Pending approvals summary */}
+              {(pendingVendors > 0 || pendingRiders > 0 || pendingMenuItems > 0) && (
+                <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <AlertTriangle className="size-5 text-yellow-400" />
+                    <p className="text-sm font-medium text-yellow-400">Pending Approvals</p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {pendingVendors > 0 && (
+                      <button onClick={() => handleNavClick('vendors')} className="rounded-xl bg-[#f97316]/10 border border-[#f97316]/20 px-3 py-2 text-sm text-[#f97316] hover:bg-[#f97316]/20 transition">
+                        <Store className="size-3.5 inline mr-1.5" />{pendingVendors} Vendor(s)
+                      </button>
+                    )}
+                    {pendingRiders > 0 && (
+                      <button onClick={() => handleNavClick('riders')} className="rounded-xl bg-blue-500/10 border border-blue-500/20 px-3 py-2 text-sm text-blue-400 hover:bg-blue-500/20 transition">
+                        <Bike className="size-3.5 inline mr-1.5" />{pendingRiders} Rider(s)
+                      </button>
+                    )}
+                    {pendingMenuItems > 0 && (
+                      <button onClick={() => handleNavClick('menuItems')} className="rounded-xl bg-purple-500/10 border border-purple-500/20 px-3 py-2 text-sm text-purple-400 hover:bg-purple-500/20 transition">
+                        <UtensilsCrossed className="size-3.5 inline mr-1.5" />{pendingMenuItems} Food Item(s)
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1805,7 +2086,7 @@ export default function Home() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-neutral-400">Hotel / Vendor *</label>
                 <Select value={menuItemForm.vendorId} onValueChange={v => {
-                  const vendor = vendors.find(vd => vd.id === Number(v))
+                  const vendor = vendors.find(vd => vd.id === v)
                   setMenuItemForm(p => ({ ...p, vendorId: v, vendorName: vendor?.hotel || '' }))
                 }}>
                   <SelectTrigger className="rounded-xl border-white/10 bg-white/5 text-sm text-neutral-300">
@@ -1813,7 +2094,7 @@ export default function Home() {
                   </SelectTrigger>
                   <SelectContent className="border-white/10 bg-[#1a1a2e]">
                     {vendors.map(v => (
-                      <SelectItem key={v.id} value={String(v.id)}>{v.hotel}</SelectItem>
+                      <SelectItem key={v.id} value={v.id}>{v.hotel}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
