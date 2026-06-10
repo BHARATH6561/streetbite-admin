@@ -5,18 +5,18 @@ import { corsResponse, corsError } from '@/app/cors-helper'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const riderData = {
+    const riderData: Record<string, unknown> = {
       name: body.name || '',
       aadhaar: body.aadhaar || null,
-      aadhaarFile: body.aadhaarFile || null,
+      aadhaarFile: body.aadhaarFile || '',
       pan: body.pan || null,
-      panFile: body.panFile || null,
-      photoFile: body.photoFile || null,
+      panFile: body.panFile || '',
+      photoFile: body.photoFile || '',
       vehicle: body.vehicle || body.vehicleNumber || null,
-      vehicleFile: body.vehicleFile || null,
-      rcFile: body.rcFile || null,
+      vehicleFile: body.vehicleFile || '',
+      rcFile: body.rcFile || '',
       dl: body.dl || body.dlNumber || null,
-      dlFile: body.dlFile || null,
+      dlFile: body.dlFile || '',
       city: body.city || null,
       state: body.state || null,
       pincode: body.pincode || null,
@@ -32,9 +32,24 @@ export async function POST(request: NextRequest) {
       deliveryFee: 30,
       handicap: body.handicap || 'NO',
     }
-    const rider = await db.rider.create({ data: riderData })
+    if (body.lat !== undefined) riderData.lat = body.lat
+    if (body.lng !== undefined) riderData.lng = body.lng
+    if (body.isOnline !== undefined) riderData.isOnline = body.isOnline
+    if (body.isHold !== undefined) riderData.isHold = body.isHold
+
+    const { data: rider, error } = await db
+      .from('Rider')
+      .insert(riderData)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('App rider register error:', error)
+      return corsError('Failed to register rider: ' + error.message, 500)
+    }
     return corsResponse({ success: true, rider, message: 'Rider registration submitted for approval' }, 201)
   } catch (err) {
+    console.error('App rider register exception:', err)
     return corsError('Failed to register rider', 500)
   }
 }

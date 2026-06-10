@@ -5,9 +5,18 @@ import { corsResponse, corsError } from '@/app/cors-helper'
 // GET /api/customers - List all customers
 export async function GET() {
   try {
-    const customers = await db.customer.findMany({ orderBy: { createdAt: 'desc' } })
-    return corsResponse({ success: true, customers })
+    const { data: customers, error } = await db
+      .from('Customer')
+      .select('*')
+      .order('createdAt', { ascending: false })
+
+    if (error) {
+      console.error('Supabase customers GET error:', error)
+      return corsError('Failed to fetch customers: ' + error.message, 500)
+    }
+    return corsResponse({ success: true, customers: customers || [] })
   } catch (err) {
+    console.error('Customers GET exception:', err)
     return corsError('Failed to fetch customers', 500)
   }
 }
@@ -16,9 +25,19 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const customer = await db.customer.create({ data: body })
+    const { data: customer, error } = await db
+      .from('Customer')
+      .insert(body)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Supabase customer POST error:', error)
+      return corsError('Failed to create customer: ' + error.message, 500)
+    }
     return corsResponse({ success: true, customer }, 201)
   } catch (err) {
+    console.error('Customer POST exception:', err)
     return corsError('Failed to create customer', 500)
   }
 }
@@ -29,9 +48,21 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, ...updates } = body
     if (!id) return corsError('Customer ID required')
-    const customer = await db.customer.update({ where: { id }, data: updates })
+
+    const { data: customer, error } = await db
+      .from('Customer')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Supabase customer PUT error:', error)
+      return corsError('Failed to update customer: ' + error.message, 500)
+    }
     return corsResponse({ success: true, customer })
   } catch (err) {
+    console.error('Customer PUT exception:', err)
     return corsError('Failed to update customer', 500)
   }
 }
@@ -42,9 +73,19 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     if (!id) return corsError('Customer ID required')
-    await db.customer.delete({ where: { id } })
+
+    const { error } = await db
+      .from('Customer')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Supabase customer DELETE error:', error)
+      return corsError('Failed to delete customer: ' + error.message, 500)
+    }
     return corsResponse({ success: true, message: 'Customer deleted' })
   } catch (err) {
+    console.error('Customer DELETE exception:', err)
     return corsError('Failed to delete customer', 500)
   }
 }
