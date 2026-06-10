@@ -9,36 +9,47 @@ export async function POST(request: NextRequest) {
       hotel: body.hotel || body.hotelName || '',
       phone: body.phone || '',
       owner: body.owner || body.ownerName || '',
-      aadhaar: body.aadhaar || null,
+      aadhaar: body.aadhaar || '',
       aadhaarFile: body.aadhaarFile || '',
-      pan: body.pan || null,
+      pan: body.pan || '',
       panFile: body.panFile || '',
-      gst: body.gst || null,
+      gst: body.gst || '',
       gstFile: body.gstFile || '',
-      fssai: body.fssai || null,
+      fssai: body.fssai || '',
       fssaiFile: body.fssaiFile || '',
-      address: body.address || null,
-      city: body.city || null,
-      state: body.state || null,
-      pin: body.pin || body.pincode || null,
+      address: body.address || '',
+      city: body.city || '',
+      state: body.state || '',
+      pin: body.pin || body.pincode || '',
       boardFile: body.boardFile || '',
-      bankName: body.bankName || null,
-      accType: body.accType || body.accountType || null,
-      accNo: body.accNo || body.accountNo || null,
-      ifsc: body.ifsc || null,
-      branch: body.branch || null,
+      bankName: body.bankName || '',
+      accType: body.accType || body.accountType || '',
+      accNo: body.accNo || body.accountNo || '',
+      ifsc: body.ifsc || '',
+      branch: body.branch || '',
       status: 'pending',
       rating: 0,
       totalOrders: 0,
       cancelledHotelDelay: 0,
       totalRevenue: 0,
       commission: 15,
+      paidOut: 0,
+      utr: '',
+      isLiveCooking: false,
+      lastOnline: 'Never',
+      isHold: false,
+      holdReason: '',
+      totalReviews: 0,
+      rating5: 0,
+      rating4: 0,
+      rating3: 0,
+      rating2: 0,
+      rating1: 0,
     }
-    // Include optional fields if provided
     if (body.lat !== undefined) vendorData.lat = body.lat
+    else vendorData.lat = 0
     if (body.lng !== undefined) vendorData.lng = body.lng
-    if (body.isLiveCooking !== undefined) vendorData.isLiveCooking = body.isLiveCooking
-    if (body.isHold !== undefined) vendorData.isHold = body.isHold
+    else vendorData.lng = 0
 
     const { data: vendor, error } = await db
       .from('Vendor')

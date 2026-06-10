@@ -8,7 +8,7 @@ export async function GET() {
     const { data: notifications, error } = await db
       .from('NotificationLog')
       .select('*')
-      .order('createdAt', { ascending: false })
+      .order('sentAt', { ascending: false })
 
     if (error) {
       console.error('Supabase notifications GET error:', error)
